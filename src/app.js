@@ -12,6 +12,8 @@ let scannedWineData = null;
 let currentFilter = null;
 let currentSearch = '';
 let db;
+let profiles = [];
+let currentProfile = null;
 
 
 // ============= OPSLAG =============
@@ -76,6 +78,82 @@ async function deleteWineDB(id) {
   });
 }
 
+// ============= PROFIEL SYSTEM =============
+async function initProfiles() {
+  try {
+    const stored = await window.storage.get('wset-profiles');
+    if (stored && stored.value) {
+      profiles = JSON.parse(stored.value);
+      if (profiles.length === 0) {
+        createProfile('Mijn profiel');
+      } else {
+        currentProfile = profiles[0].id;
+      }
+    } else {
+      createProfile('Mijn profiel');
+    }
+  } catch (e) {
+    createProfile('Mijn profiel');
+  }
+}
+
+async function createProfile(name) {
+  const profile = {
+    id: Date.now(),
+    name: name,
+    createdAt: new Date().toLocaleDateString('nl-NL'),
+    wines: []
+  };
+  profiles.unshift(profile);
+  currentProfile = profile.id;
+  await saveProfiles();
+}
+
+async function saveProfiles() {
+  try {
+    await window.storage.set('wset-profiles', JSON.stringify(profiles));
+  } catch (e) {
+    console.error('Fout bij opslaan profielen:', e);
+  }
+}
+
+function getCurrentProfile() {
+  return profiles.find(p => p.id === currentProfile);
+}
+
+function addWineToProfile(wine) {
+  const profile = getCurrentProfile();
+  if (profile) {
+    // Controleer of wijn al in profiel zit
+    if (!profile.wines.find(w => w.wineId === wine.id)) {
+      profile.wines.push({
+        wineId: wine.id,
+        addedDate: new Date().toLocaleDateString('nl-NL'),
+        aiScore: wine.aiScore || null,
+        aiScoreDate: wine.aiScoreDate || null
+      });
+      saveProfiles();
+    }
+  }
+}
+
+function getProfileStats(profileId) {
+  const profile = profiles.find(p => p.id === profileId);
+  if (!profile || profile.wines.length === 0) return null;
+  
+  const scoresWithAI = profile.wines.filter(w => w.aiScore);
+  
+  if (scoresWithAI.length === 0) return null;
+  
+  const avgScore = (scoresWithAI.reduce((sum, w) => sum + w.aiScore, 0) / scoresWithAI.length).toFixed(1);
+  
+  return {
+    totalWines: profile.wines.length,
+    scoredWines: scoresWithAI.length,
+    averageScore: avgScore
+  };
+}
+
 // ============= INTERFACE =============
 function render() {
   const app = document.getElementById('app');
@@ -86,12 +164,19 @@ function render() {
     renderForm(app);
   } else if (currentScreen === 'scan') {
     renderScan(app);
+  } else if (currentScreen === 'profielen') {
+    renderProfiles(app);
   }
 }
 
 function renderList(container) {
+  const currentProf = getCurrentProfile();
   container.innerHTML = `
     <div class="app">
+      <div style="background: #e8f5e9; padding: 10px; border-radius: 4px; margin-bottom: 1rem; font-size: 13px;">
+        👤 Actief profiel: <strong>${currentProf?.name || 'Geen'}</strong>
+        <button class="button" onclick="switchScreen('profielen')" style="float: right; font-size: 11px; padding: 4px 8px; height: auto;">Wisselen</button>
+      </div>
       <h1>Mijn wijnen</h1>
       <button class="button" onclick="switchScreen('nieuw')" style="width: 100%; margin-bottom: 1rem;">+ Nieuwe notitie</button>
       
@@ -141,6 +226,148 @@ function renderFiltersAndList() {
   filterAndSearch();
 }
 
+function renderProfiles(container) {
+  container.innerHTML = `
+    <div class="app">
+      <button class="button" onclick="switchScreen('lijst')" style="margin-bottom: 1rem;">← Terug naar wijnen</button>
+      <h1>Mijn Profielen</h1>
+      <button class="button" onclick="promptNewProfile()" style="width: 100%; margin-bottom: 1rem;">+ Nieuw profiel</button>
+      
+      <div id="profiles-list"></div>
+    </div>
+  `;
+  
+  const list = document.getElementById('profiles-list');
+  
+  if (profiles.length === 0) {
+    list.innerHTML = '<div class="empty-state">Geen profielen</div>';
+    return;
+  }
+  
+  // Sorteer op gemiddelde score
+  const profilesWithStats = profiles.map(p => ({
+    ...p,
+    stats: getProfileStats(p.id)
+  })).sort((a, b) => {
+    const scoreA = a.stats?.averageScore || 0;
+    const scoreB = b.stats?.averageScore || 0;
+    return scoreB - scoreA;
+  });
+  
+  list.innerHTML = profilesWithStats.map((p, idx) => {
+    const stats = p.stats;
+    const isCurrent = p.id === currentProfile;
+    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
+    
+    return `
+      <div class="wine-card" style="border-left: 4px solid ${isCurrent ? '#4caf50' : '#ccc'}; cursor: pointer;" onclick="switchProfile(${p.id})">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div style="font-weight: 500; font-size: 15px;">${medal} ${p.name}</div>
+            <div style="font-size: 12px; color: var(--color-text-tertiary); margin-top: 4px;">Aangemaakt: ${p.createdAt}</div>
+          </div>
+          ${stats ? `
+            <div style="text-align: right;">
+              <div style="font-size: 24px; font-weight: bold; color: #4caf50;">${stats.averageScore}</div>
+              <div style="font-size: 11px; color: var(--color-text-secondary);">gemiddeld</div>
+            </div>
+          ` : ''}
+        </div>
+        ${stats ? `
+          <div style="margin-top: 8px; font-size: 12px; color: var(--color-text-secondary);">
+            ${stats.scoredWines}/${stats.totalWines} wijnen beoordeeld
+          </div>
+        ` : `
+          <div style="margin-top: 8px; font-size: 12px; color: var(--color-text-secondary); font-style: italic;">
+            Nog geen wijnen beoordeeld
+          </div>
+        `}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
+          <button class="button" onclick="selectProfileAndNew(${p.id})" style="font-size: 12px; padding: 6px; background: #e8f5e9; color: #2e7d32;">+ Nieuw</button>
+          <button class="button" onclick="viewProfileWines(event, ${p.id})" style="font-size: 12px; padding: 6px;">Geschiedenis</button>
+        </div>
+      <button class="button" onclick="deleteProfile(event, ${p.id})" style="width: 100%; margin-top: 4px; font-size: 12px; padding: 6px; background: #ffebee; color: #c62828;">Verwijderen</button>
+    </div>
+    `;
+  }).join('');
+}
+
+function promptNewProfile() {
+  const name = prompt('Naam voor nieuw profiel:');
+  if (name && name.trim()) {
+    createProfile(name.trim());
+    renderProfiles(document.getElementById('app'));
+  }
+}
+
+function switchProfile(profileId) {
+  currentProfile = profileId;
+  renderProfiles(document.getElementById('app'));
+}
+
+function viewProfileWines(event, profileId) {
+  event.stopPropagation();
+  const profile = profiles.find(p => p.id === profileId);
+  
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="app">
+      <button class="button" onclick="switchScreen('profielen')" style="margin-bottom: 1rem;">← Terug naar profielen</button>
+      <h2>${profile.name} - Geschiedenis</h2>
+      <div class="wine-list" id="profile-wines"></div>
+    </div>
+  `;
+  
+  const list = document.getElementById('profile-wines');
+  if (profile.wines.length === 0) {
+    list.innerHTML = '<div class="empty-state">Geen wijnen in dit profiel</div>';
+    return;
+  }
+  
+  // Sorteer op score (hoogste eerst)
+  const profileWinesSorted = [...profile.wines].sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
+  
+  list.innerHTML = profileWinesSorted.map(pw => {
+    const w = wines.find(wine => wine.id === pw.wineId);
+    if (!w) return '';
+    return `
+      <div class="wine-card" onclick="showDetail(${w.id})">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div style="font-weight: 500;">${w.naam}</div>
+            <div style="font-size: 12px; color: var(--color-text-tertiary); margin-top: 2px;">
+              ${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}
+            </div>
+          </div>
+          ${pw.aiScore ? `
+            <div style="font-size: 20px; font-weight: bold; color: #4caf50;">${pw.aiScore}</div>
+          ` : ''}
+        </div>
+        ${pw.aiScoreDate ? `<div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 4px;">Beoordeeld: ${pw.aiScoreDate}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function deleteProfile(event, profileId) {
+  event.stopPropagation();
+  if (confirm('Weet je zeker? Je kunt dit niet ongedaan maken.')) {
+    profiles = profiles.filter(p => p.id !== profileId);
+    if (profiles.length === 0) {
+      createProfile('Mijn profiel');
+    } else if (currentProfile === profileId) {
+      currentProfile = profiles[0].id;
+    }
+    saveProfiles();
+    renderProfiles(document.getElementById('app'));
+  }
+}
+
+function selectProfileAndNew(profileId) {
+  currentProfile = profileId;
+  switchScreen('nieuw');
+}
+
 function setFilter(druif) {
   currentFilter = druif;
   // Update alle filter buttons
@@ -177,19 +404,39 @@ function filterAndSearch() {
   if (filtered.length === 0) {
     list.innerHTML = '<div class="empty-state">Geen wijnen gevonden</div>';
   } else {
-    list.innerHTML = filtered.map(w => `
-      <div class="wine-card" onclick="showDetail(${w.id})">
-        <div style="font-weight: 500;">
-          ${w.naam}
+    list.innerHTML = filtered.map(w => {
+      // Vind alle profielen die deze wijn hebben beoordeeld
+      const reviewingProfiles = profiles.filter(p => 
+        p.wines.find(pw => pw.wineId === w.id)
+      );
+      return `
+        <div class="wine-card" onclick="showDetail(${w.id})">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <div style="font-weight: 500;">${w.naam}</div>
+              <div style="font-size: 12px; color: var(--color-text-secondary);">
+                ${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}
+              </div>
+            </div>
+            ${reviewingProfiles.length > 0 ? `
+              <div style="display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;">
+                ${reviewingProfiles.map(p => {
+                  const profileWine = p.wines.find(pw => pw.wineId === w.id);
+                  return `
+                    <button class="chip" onclick="event.stopPropagation(); showWineReviews(${w.id})" style="font-size: 11px; padding: 4px 8px; cursor: pointer;">
+                      ${p.name} ${profileWine.aiScore ? '(' + profileWine.aiScore + ')' : ''}
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            ` : ''}
+          </div>
+          <div style="font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px;">
+            ${w.datum}
+          </div>
         </div>
-        <div style="font-size: 12px; color: var(--color-text-secondary);">
-          ${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}
-        </div>
-        <div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 4px;">
-          ${w.datum}
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 }
 
@@ -557,6 +804,7 @@ function saveWine() {
   };
   
   wines.unshift(wine);
+  addWineToProfile(wine);
   saveWines();
   resetForm();
   switchScreen('lijst');
@@ -658,11 +906,97 @@ function showDetail(id) {
   `;
 }
 
+function showWineReviews(wineId) {
+  const wine = wines.find(w => w.id === wineId);
+  const reviewingProfiles = profiles.filter(p => 
+    p.wines.find(pw => pw.wineId === wineId)
+  );
+  
+  const app = document.getElementById('app');
+  const reviewsDiv = document.createElement('div');
+  reviewsDiv.id = 'wine-reviews-modal';
+  reviewsDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;';
+  
+  reviewsDiv.innerHTML = `
+    <div style="background: white; border-radius: 8px; padding: 2rem; max-width: 500px; max-height: 80vh; overflow-y: auto; width: 90%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="margin: 0;">${wine.naam}</h2>
+        <button onclick="document.getElementById('wine-reviews-modal').remove()" style="background: none; border: none; font-size: 20px; cursor: pointer;">✕</button>
+      </div>
+      
+      <div style="display: flex; gap: 8px; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 1rem;">
+        ${reviewingProfiles.map(p => {
+          const profileWine = p.wines.find(pw => pw.wineId === wineId);
+          return `
+            <button class="filter-chip" onclick="showReviewTab('${p.id}')" id="tab-${p.id}" style="border: none; padding: 8px 12px;">
+              ${p.name} ${profileWine.aiScore ? '(' + profileWine.aiScore + ')' : ''}
+            </button>
+          `;
+        }).join('')}
+      </div>
+      
+      <div id="review-content"></div>
+    </div>
+  `;
+  
+  document.body.appendChild(reviewsDiv);
+  
+  // Show first profile's review
+  if (reviewingProfiles.length > 0) {
+    showReviewTab(reviewingProfiles[0].id, wineId);
+  }
+}
+
+function showReviewTab(profileId, wineId) {
+  const wine = wines.find(w => w.id === wineId);
+  const profile = profiles.find(p => p.id === profileId);
+  const profileWine = profile.wines.find(w => w.wineId === wineId);
+  
+  // Update tab styling
+  document.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  document.getElementById(`tab-${profileId}`).classList.add('active');
+  
+  // Show review content
+  document.getElementById('review-content').innerHTML = `
+    <div style="font-size: 13px; line-height: 1.6; color: var(--color-text-secondary);">
+      <div style="margin-bottom: 1rem;">
+        <div style="font-weight: 500; color: var(--color-text-primary);">Profiel:</div>
+        ${profile.name}
+      </div>
+      
+      ${profileWine.aiScore ? `
+        <div style="margin-bottom: 1rem;">
+          <div style="font-weight: 500; color: var(--color-text-primary);">Score:</div>
+          <div style="font-size: 24px; font-weight: bold; color: #4caf50;">${profileWine.aiScore}/10</div>
+        </div>
+      ` : `
+        <div style="margin-bottom: 1rem; font-style: italic;">Nog niet beoordeeld met AI</div>
+      `}
+      
+      ${profileWine.aiScoreDate ? `
+        <div style="font-size: 11px; color: var(--color-text-tertiary);">
+          Beoordeeld: ${profileWine.aiScoreDate}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
 function deleteWine(id) {
-  wines = wines.filter(w => w.id !== id);
-  saveWines();
-  showToast('Notitie verwijderd');
-  showScreen('lijst');
+  if (confirm('Weet je zeker?')) {
+    wines = wines.filter(w => w.id !== id);
+    
+    // Verwijder ook uit alle profielen
+    profiles.forEach(p => {
+      p.wines = p.wines.filter(w => w.wineId !== id);
+    });
+    
+    saveWines();
+    saveProfiles();
+    switchScreen('lijst');
+  }
 }
 
 function handleImageUpload(event) {
@@ -883,8 +1217,26 @@ GEEF OUTPUT in EXACT dit format (niets anders):
 Zorg dat alles KORT, DUIDELIJK en CONSTRUCTIEF is. Geen lange teksten.`;
 
     const feedback = await callGemini(comparisonPrompt);
+    const scoreMatch = feedback.match(/SCORE:\s*(\d+)/);
+    const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+    if (score > 0) {
+      wine.aiScore = score;
+      wine.aiScoreDate = new Date().toLocaleDateString('nl-NL');
+      await saveWines();
+  
+      // Update profiel met score
+      const profile = getCurrentProfile();
+      if (profile) {
+        const profileWine = profile.wines.find(w => w.wineId === wine.id);
+        if (profileWine) {
+          profileWine.aiScore = score;
+          profileWine.aiScoreDate = new Date().toLocaleDateString('nl-NL');
+          saveProfiles();
+        }
+      }
+    }
     
-    // Parse en display
+    // isplay
     resultDiv.innerHTML = `
       <div style="color: #4caf50; font-weight: bold; margin-bottom: 1rem; font-size: 14px;">✓ AI FEEDBACK</div>
       ${feedback.split('\n').map(line => {
@@ -921,6 +1273,7 @@ async function callGemini(prompt) {
 async function init() {
   await initDB();
   await loadWines();
+  await initProfiles();
   render();
 }
 
@@ -940,3 +1293,10 @@ window.render = render;
 window.setFilter = setFilter;
 window.filterAndSearch = filterAndSearch;
 window.checkWithAI = checkWithAI;
+window.switchProfile = switchProfile;
+window.viewProfileWines = viewProfileWines;
+window.promptNewProfile = promptNewProfile;
+window.deleteProfile = deleteProfile;
+window.selectProfileAndNew = selectProfileAndNew;
+window.showWineReviews = showWineReviews;
+window.showReviewTab = showReviewTab;
