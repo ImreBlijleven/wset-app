@@ -1,7 +1,14 @@
+import { GoogleGenAI } from "@google/genai";
+
+const ai = new GoogleGenAI({
+  apiKey: import.meta.env.VITE_GEMINI_API_KEY
+});
+
 // App state (je gegevens in het geheugen)
 let wines = [];
 let currentScreen = 'lijst';
 let chipState = {};
+let scannedWineData = null;
 
 // ============= OPSLAG =============
 async function loadWines() {
@@ -30,6 +37,8 @@ function render() {
     renderList(app);
   } else if (currentScreen === 'nieuw') {
     renderForm(app);
+  } else if (currentScreen === 'scan') {
+    renderScan(app);
   }
 }
 
@@ -61,6 +70,8 @@ function renderForm(container) {
   container.innerHTML = `
     <div class="app">
       <h1>Proefformulier</h1>
+      
+      <button class="button" onclick="switchScreen('scan')" style="width: 100%; margin-bottom: 1rem;">📸 Etiket scannen</button>
       
       <!-- WIJNINFO -->
       <div class="card">
@@ -293,6 +304,55 @@ function renderForm(container) {
   setupChips();
 }
 
+function renderScan(container) {
+  container.innerHTML = `
+    <div class="app">
+      <h2>Etiket herkennen</h2>
+      
+      <div class="card">
+        <div style="border: 2px dashed var(--color-border); padding: 2rem; text-align: center; cursor: pointer;" 
+             onclick="document.getElementById('img-input').click()">
+          <div style="font-size: 32px; margin-bottom: 8px;">📸</div>
+          <div style="font-weight: 500;">Upload een foto van het etiket</div>
+        </div>
+        
+        <input type="file" id="img-input" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+        
+        <div id="preview" style="display: none; margin-top: 1rem;">
+          <img id="preview-img" style="width: 100%; max-height: 200px; object-fit: contain; border-radius: 4px;">
+        </div>
+        
+        <button id="analyze-btn" class="button" onclick="analyzeLabel()" style="width: 100%; display: none; margin-top: 0.5rem;">Analyseer met AI</button>
+        
+        <div id="scan-status" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--color-bg-secondary); border-radius: 4px;">
+          <div id="scan-result-text"></div>
+          <button id="use-btn" class="button" onclick="useScannedWine()" style="width: 100%; margin-top: 0.5rem; display: none;">→ Gebruik in formulier</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function useScannedWine() {
+  if (!scannedWineData) return;
+  
+  // Ga naar formulier
+  switchScreen('nieuw');
+  
+  // Wacht even zodat formulier geladen is
+  setTimeout(() => {
+    // Vul velden in (laat leeg als niet aanwezig)
+    if (scannedWineData.naam) document.getElementById('f-naam').value = scannedWineData.naam;
+    if (scannedWineData.druif) document.getElementById('f-druif').value = scannedWineData.druif;
+    if (scannedWineData.jaar) document.getElementById('f-jaar').value = scannedWineData.jaar;
+    if (scannedWineData.regio) document.getElementById('f-regio').value = scannedWineData.regio;
+    if (scannedWineData.type) document.getElementById('f-type').value = scannedWineData.type;
+    
+    // Scroll naar top
+    window.scrollTo(0, 0);
+  }, 100);
+}
+
 function toggleChip(el, group) {
   const multiSelect = ['aroma', 'smaak'].includes(group);
   
@@ -469,6 +529,153 @@ function deleteWine(id) {
   switchScreen('lijst');
 }
 
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const result = e.target.result;
+    const mediaType = file.type || 'image/jpeg';
+    scannedWineData = { 
+      base64: result.split(',')[1],
+      mediaType: mediaType
+    };
+    document.getElementById('preview-img').src = result;
+    document.getElementById('preview').style.display = 'block'; 
+    document.getElementById('analyze-btn').style.display = 'block';
+    document.getElementById('scan-status').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ============= AI SERVICE (pluggable) =============
+const AI_PROVIDER = 'gemini'; // 'gemini' of 'claude' — wissel hier later!
+
+async function analyzeWineLabel(imageBase64, mediaType) {
+  if (AI_PROVIDER === 'gemini') {
+    return analyzeWithGemini(imageBase64, mediaType);
+  } else if (AI_PROVIDER === 'claude') {
+    return analyzeWithClaude(imageBase64, mediaType);
+  }
+}
+
+async function analyzeWithGemini(imageBase64, mediaType) {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [{
+        role: "user",
+        parts: [
+          {
+            inlineData: {
+              mimeType: mediaType,
+              data: imageBase64
+            }
+          },
+          {
+            text: 'Analyseer dit wijnetiket. Geef ALLEEN een JSON object (geen markdown, geen backticks) met deze velden: naam, druif, jaar, regio, type (Rood/Wit/Rosé/Mousseux/Dessertwijn). Zet null voor onleesbare velden.'
+          }
+        ]
+      }]
+    });
+
+    console.log('Gemini response:', response.text);
+    const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Kon JSON niet uit respons halen');
+    
+    return JSON.parse(jsonMatch[0]);
+  } catch (err) {
+    console.error('Gemini fout:', err);
+    throw new Error('Kon etiket niet herkennen met Gemini');
+  }
+}
+
+async function analyzeWithClaude(imageBase64, mediaType) {
+  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error('Claude API key niet ingesteld');
+  }
+  
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: mediaType,
+                data: imageBase64
+              }
+            },
+            {
+              type: 'text',
+              text: 'Analyseer dit wijnetiket. Geef ALLEEN een JSON object (geen markdown, geen backticks) met deze velden: naam, druif, jaar, regio, type (Rood/Wit/Rosé/Mousseux/Dessertwijn). Zet null voor onleesbare velden.'
+            }
+          ]
+        }]
+      })
+    });
+    
+    const data = await response.json();
+    if (!data.content?.[0]?.text) {
+      throw new Error('Geen respons van Claude');
+    }
+    
+    const text = data.content[0].text;
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Kon JSON niet uit respons halen');
+    
+    return JSON.parse(jsonMatch[0]);
+  } catch (err) {
+    console.error('Claude fout:', err);
+    throw new Error('Kon etiket niet herkennen met Claude');
+  }
+}
+
+async function analyzeLabel() {
+  if (!scannedWineData) return;
+  
+  const analyzeBtn = document.getElementById('analyze-btn');
+  const status = document.getElementById('scan-status');
+  const resultText = document.getElementById('scan-result-text');
+  const useBtn = document.getElementById('use-btn');
+  
+  // Disable analyze button zodat je niet opnieuw kan klikken
+  analyzeBtn.disabled = true;
+  analyzeBtn.style.opacity = '0.5';
+  
+  status.style.display = 'block';
+  resultText.innerHTML = '<span class="spinner"></span> AI analyseert het etiket...';
+  useBtn.style.display = 'none';
+  
+  const base64 = scannedWineData.base64;
+  const mediaType = scannedWineData.mediaType || 'image/jpeg';
+  
+  try {
+    const info = await analyzeWineLabel(base64, mediaType);
+    scannedWineData = { ...scannedWineData, ...info };
+    
+    resultText.innerHTML = `<strong>${info.naam || '?'}</strong><br><span style="color:var(--color-text-secondary);">${[info.druif, info.regio, info.jaar].filter(Boolean).join(' · ')}</span>`;
+    
+    useBtn.style.display = 'block';
+  } catch (err) {
+    resultText.innerHTML = `<span style="color: #c62828;">${err.message}</span>`;
+    analyzeBtn.disabled = false;
+    analyzeBtn.style.opacity = '1';
+  }
+}
+
 // ============= INIT =============
 async function init() {
   await loadWines();
@@ -484,4 +691,7 @@ window.saveWine = saveWine;
 window.showDetail = showDetail;
 window.deleteWine = deleteWine;
 window.toggleChip = toggleChip;
+window.handleImageUpload = handleImageUpload;
+window.analyzeLabel = analyzeLabel;
+window.useScannedWine = useScannedWine;
 window.render = render;
