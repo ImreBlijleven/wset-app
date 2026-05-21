@@ -149,3 +149,14 @@ body {
 }
 
 .toast.show { opacity: 1; }
+
+.chip-group-section {
+  margin-bottom: 12px;
+}
+
+.chip-group-section-label {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
