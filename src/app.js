@@ -9,6 +9,8 @@ let wines = [];
 let currentScreen = 'lijst';
 let chipState = {};
 let scannedWineData = null;
+let currentFilter = null;
+let currentSearch = '';
 
 // ============= OPSLAG =============
 async function loadWines() {
@@ -46,20 +48,100 @@ function renderList(container) {
   container.innerHTML = `
     <div class="app">
       <h1>Mijn wijnen</h1>
-      <button class="button" onclick="switchScreen('nieuw')">+ Nieuwe notitie</button>
+      <button class="button" onclick="switchScreen('nieuw')" style="width: 100%; margin-bottom: 1rem;">+ Nieuwe notitie</button>
+      
+      <!-- ZOEKBALK -->
+      <input type="text" id="search" placeholder="Zoek op naam, druif, regio..." style="width: 100%; margin-bottom: 1rem; padding: 8px; border: 0.5px solid var(--color-border); border-radius: 4px;" oninput="filterAndSearch()">
+      
+      <!-- FILTERS -->
+      <div id="filters" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem;"></div>
+      
       <div class="wine-list" id="wine-list"></div>
     </div>
   `;
   
+  // Setup zoeken
+  const searchInput = document.getElementById('search');
+  if (searchInput) {
+    searchInput.addEventListener('input', filterAndSearch);
+  }
+  
+  renderFiltersAndList();
+}
+
+function renderFiltersAndList() {
+  const druiven = [...new Set(wines.map(w => w.druif).filter(Boolean))];
+  const filterDiv = document.getElementById('filters');
+  
+  if (!filterDiv) return;
+  
+  filterDiv.innerHTML = '';
+  
+  // "Alles" knop
+  const allBtn = document.createElement('button');
+  allBtn.className = 'filter-chip' + (currentFilter === null ? ' active' : '');
+  allBtn.textContent = 'Alles';
+  allBtn.onclick = () => { currentFilter = null; renderFiltersAndList(); filterAndSearch(); };
+  filterDiv.appendChild(allBtn);
+  
+  // Druif knoppen
+  druiven.forEach(druif => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-chip' + (druif === currentFilter ? ' active' : '');
+    btn.textContent = druif;
+    btn.onclick = () => { currentFilter = druif; renderFiltersAndList(); filterAndSearch(); };
+    filterDiv.appendChild(btn);
+  });
+  
+  filterAndSearch();
+}
+
+function setFilter(druif) {
+  currentFilter = druif;
+  // Update alle filter buttons
+  document.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  // Activeer de geklikt button
+  event.target.classList.add('active');
+  filterAndSearch();
+}
+
+function filterAndSearch() {
+  const searchInput = document.getElementById('search');
+  currentSearch = searchInput ? searchInput.value.toLowerCase() : '';
+  
+  // Filter op druivenras
+  let filtered = currentFilter 
+    ? wines.filter(w => w.druif === currentFilter)
+    : wines;
+  
+  // Filter op zoekterm
+  if (currentSearch) {
+    filtered = filtered.filter(w => 
+      (w.naam && w.naam.toLowerCase().includes(currentSearch)) ||
+      (w.druif && w.druif.toLowerCase().includes(currentSearch)) ||
+      (w.regio && w.regio.toLowerCase().includes(currentSearch))
+    );
+  }
+  
+  // Render de lijst
   const list = document.getElementById('wine-list');
-  if (wines.length === 0) {
-    list.innerHTML = '<div class="empty-state">Nog geen wijnen. Voeg je eerste toe!</div>';
+  if (!list) return;
+  
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state">Geen wijnen gevonden</div>';
   } else {
-    list.innerHTML = wines.map(w => `
+    list.innerHTML = filtered.map(w => `
       <div class="wine-card" onclick="showDetail(${w.id})">
-        <div style="font-weight: 500;">${w.naam}</div>
+        <div style="font-weight: 500;">
+          ${w.naam}
+        </div>
         <div style="font-size: 12px; color: var(--color-text-secondary);">
           ${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}
+        </div>
+        <div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 4px;">
+          ${w.datum}
         </div>
       </div>
     `).join('');
@@ -695,3 +777,5 @@ window.handleImageUpload = handleImageUpload;
 window.analyzeLabel = analyzeLabel;
 window.useScannedWine = useScannedWine;
 window.render = render;
+window.setFilter = setFilter;
+window.filterAndSearch = filterAndSearch;

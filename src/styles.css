@@ -160,3 +160,25 @@ body {
   margin-bottom: 6px;
   font-weight: 500;
 }
+
+.filter-chip {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  border: 0.5px solid var(--color-border);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+
+.filter-chip:hover {
+  border-color: var(--color-text-secondary);
+}
+
+.filter-chip.active {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-primary);
+  font-weight: 500;
+}
