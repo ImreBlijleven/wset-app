@@ -11,25 +11,70 @@ let chipState = {};
 let scannedWineData = null;
 let currentFilter = null;
 let currentSearch = '';
+let db;
+
 
 // ============= OPSLAG =============
+
+async function initDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('WsetApp', 1);
+    req.onupgradeneeded = (e) => {
+      const database = e.target.result;
+      if (!database.objectStoreNames.contains('wines')) {
+        database.createObjectStore('wines', { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => { 
+      db = req.result;
+      resolve(); 
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
 async function loadWines() {
-  try {
-    const stored = localStorage.getItem('wset-wines');
-    wines = stored ? JSON.parse(stored) : [];
-  } catch (e) {
-    console.error('Fout bij laden:', e);
-  }
+  if (!db) await initDB();
+  
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('wines', 'readonly');
+    const store = tx.objectStore('wines');
+    const req = store.getAll();
+    req.onsuccess = () => {
+      wines = req.result.reverse(); // Nieuwste eerst
+      resolve();
+    };
+    req.onerror = () => reject(req.error);
+  });
 }
 
 async function saveWines() {
-  try {
-    localStorage.setItem('wset-wines', JSON.stringify(wines));
-  } catch (e) {
-    console.error('Fout bij opslaan:', e);
-  }
+  if (!db) await initDB();
+  
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('wines', 'readwrite');
+    const store = tx.objectStore('wines');
+    
+    wines.forEach(wine => {
+      store.put(wine);
+    });
+    
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
+async function deleteWineDB(id) {
+  if (!db) await initDB();
+  
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('wines', 'readwrite');
+    const store = tx.objectStore('wines');
+    const req = store.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
 
 // ============= INTERFACE =============
 function render() {
@@ -608,7 +653,8 @@ function showDetail(id) {
 function deleteWine(id) {
   wines = wines.filter(w => w.id !== id);
   saveWines();
-  switchScreen('lijst');
+  showToast('Notitie verwijderd');
+  showScreen('lijst');
 }
 
 function handleImageUpload(event) {
@@ -760,6 +806,7 @@ async function analyzeLabel() {
 
 // ============= INIT =============
 async function init() {
+  await initDB();
   await loadWines();
   render();
 }
