@@ -644,8 +644,16 @@ function showDetail(id) {
           ${row('Kwaliteit', wine.kwaliteit)}
         </table>
       </div>
+      <div class="card" style="background: #f5f5f5; border-left: 4px solid #4caf50;">
+        <div class="section-title">Expert vs. Jij</div>
+        <div style="font-size: 12px; color: var(--color-text-secondary); line-height: 1.6;">
+          Heb je de AI-checker al gebruikt? Klik op "Laat nakijken door AI-sommelier" om je antwoorden te vergelijken met een expert sommelier.
+        </div>
+      </div>
 
-      <button class="button" onclick="deleteWine(${wine.id})" style="width: 100%; margin-top: 1rem; background: #ffebee; color: #c62828;">Verwijderen</button>
+      <button class="button" onclick="checkWithAI(${wine.id})" style="width: 100%; margin-top: 1rem; background: #e8f5e9; color: #2e7d32; font-weight: 500;">🔍 Laat nakijken door AI-sommelier</button>
+      
+      <button class="button" onclick="deleteWine(${wine.id})" style="width: 100%; margin-top: 0.5rem; background: #ffebee; color: #c62828;">Verwijderen</button>
     </div>
   `;
 }
@@ -804,6 +812,111 @@ async function analyzeLabel() {
   }
 }
 
+async function checkWithAI(wineId) {
+  const wine = wines.find(w => w.id === wineId);
+  if (!wine) return;
+  
+  const app = document.getElementById('app');
+  let resultDiv = document.getElementById('ai-check-result');
+  
+  if (!resultDiv) {
+    resultDiv = document.createElement('div');
+    resultDiv.id = 'ai-check-result';
+    resultDiv.style.marginTop = '1rem';
+    resultDiv.style.padding = '1.5rem';
+    resultDiv.style.background = 'var(--color-bg-secondary)';
+    resultDiv.style.borderRadius = '4px';
+    resultDiv.style.border = '2px solid #4caf50';
+    app.appendChild(resultDiv);
+  }
+  
+  resultDiv.innerHTML = '<span class="spinner"></span> AI analyseert wijn...';
+  
+  try {
+    // Stap 1: AI analyseert wijn online
+    const analysisPrompt = `Je bent een WSET Level 2 sommelier en wijncriticus. Je taak:
+
+1. ANALYSEER online deze wijn (Vivino, recensies, technische fiches):
+${wine.naam} ${wine.jaar} - ${wine.druif} - ${wine.regio}
+
+2. SCHRIJF je eigen korte proefnotitie (max 8 regels) in dit format:
+UITERLIJK: [kleur + intensiteit]
+NEUS: [dominante aroma's]
+SMAAK: [smaakkenmerken, body, afdronk]
+KWALITEIT: [waardering slecht/redelijk/goed/heel goed/voortreffelijk]`;
+
+    const expertNotice = await callGemini(analysisPrompt);
+    resultDiv.innerHTML = '<span class="spinner"></span> Vergelijkt met jouw notitie...';
+    
+    // Stap 2: AI vergelijkt en geeft feedback
+    const comparisonPrompt = `Je bent een WSET Level 2 sommelier. Je hebt zojuist deze proefnotitie geschreven:
+
+${expertNotice}
+
+---
+
+Nu vergelijk je met de student-notitie voor dezelfde wijn:
+
+STUDENT NOTITIE:
+Uiterlijk: ${wine.kleur || 'niet ingevuld'} | ${wine.helderheid || ''} | ${wine.intensiteit || ''}
+Neus: ${wine.aroma || 'niet ingevuld'}
+${wine.notitieGeur ? 'Geur notities: ' + wine.notitieGeur : ''}
+Smaak: ${wine.smaak || 'niet ingevuld'} | Body: ${wine.body || ''} | Afdronk: ${wine.afdronk || ''}
+${wine.notitieSmaak ? 'Smaak notities: ' + wine.notitieSmaak : ''}
+Kwaliteit: ${wine.kwaliteit || 'niet ingevuld'}
+
+---
+
+GEEF OUTPUT in EXACT dit format (niets anders):
+
+**EXPERT ANALYSE**
+[Jouw korte 2-3 zin samenvatting van wat deze wijn bijzonder maakt]
+
+**SCORE: X/10**
+[1 zin waarom deze score]
+
+**FEEDBACK (3 punten)**
+✓ Dit ging goed: [1 ding dat de student goed deed]
+△ Dit kon beter: [1 ding om te verbeteren]
+→ Tip: [1 concrete tip]
+
+Zorg dat alles KORT, DUIDELIJK en CONSTRUCTIEF is. Geen lange teksten.`;
+
+    const feedback = await callGemini(comparisonPrompt);
+    
+    // Parse en display
+    resultDiv.innerHTML = `
+      <div style="color: #4caf50; font-weight: bold; margin-bottom: 1rem; font-size: 14px;">✓ AI FEEDBACK</div>
+      ${feedback.split('\n').map(line => {
+        if (line.includes('**')) {
+          return `<div style="font-weight: 500; margin-top: 0.75rem; margin-bottom: 0.5rem; font-size: 13px;">${line.replace(/\*\*/g, '')}</div>`;
+        }
+        if (line.trim() === '') return '';
+        return `<div style="font-size: 13px; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: 0.5rem;">${line}</div>`;
+      }).join('')}
+    `;
+    
+  } catch (err) {
+    resultDiv.innerHTML = `<span style="color: #c62828;">❌ Fout: ${err.message}</span>`;
+  }
+}
+
+async function callGemini(prompt) {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error('Gemini API key niet ingesteld');
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-3.5-flash",
+    contents: [{
+      role: "user",
+      parts: [{ text: prompt }]
+    }]
+  });
+  
+  return response.text;
+}
+
+
 // ============= INIT =============
 async function init() {
   await initDB();
@@ -826,3 +939,4 @@ window.useScannedWine = useScannedWine;
 window.render = render;
 window.setFilter = setFilter;
 window.filterAndSearch = filterAndSearch;
+window.checkWithAI = checkWithAI;
