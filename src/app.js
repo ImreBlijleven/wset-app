@@ -1355,7 +1355,7 @@ async function analyzeWithGemini(imageBase64, mediaType) {
       body: JSON.stringify({
         imageBase64,
         mediaType,
-        analyzeType: 'label'
+        analyzeType: 'label'   // ← VOEG DIT TOE
       })
     });
 
