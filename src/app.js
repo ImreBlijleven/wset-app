@@ -1349,31 +1349,113 @@ async function analyzeWineLabel(imageBase64, mediaType) {
 
 async function analyzeWithGemini(imageBase64, mediaType) {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: [{
-        role: "user",
-        parts: [
-          {
-            inlineData: {
-              mimeType: mediaType,
-              data: imageBase64
-            }
-          },
-          {
-            text: 'Analyseer dit wijnetiket. Geef ALLEEN een JSON object (geen markdown, geen backticks) met deze velden: naam, druif, jaar, regio, type. Zet null voor onleesbare velden.'
-          }
-        ]
-      }]
+    const response = await fetch('/api/analyze-wine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imageBase64,
+        mediaType,
+        analyzeType: 'label'
+      })
     });
 
-    const jsonMatch = response.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Kon JSON niet uit respons halen');
-    
-    return JSON.parse(jsonMatch[0]);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Server error');
+    }
+
+    return await response.json();
   } catch (err) {
-    console.error('Gemini fout:', err);
+    console.error('API error:', err);
     throw new Error('Kon etiket niet herkennen');
+  }
+}
+
+async function checkWithAI(noteId) {
+  const wine = wines.find(w => w.id === noteId);
+  if (!wine) return;
+  
+  const app = document.getElementById('app');
+  let resultDiv = document.getElementById('ai-check-result');
+  
+  if (!resultDiv) {
+    resultDiv = document.createElement('div');
+    resultDiv.id = 'ai-check-result';
+    resultDiv.style.marginTop = '1rem';
+    resultDiv.style.padding = '1.5rem';
+    resultDiv.style.background = '#f5f5f5';
+    resultDiv.style.borderRadius = '4px';
+    resultDiv.style.border = '2px solid #4caf50';
+    app.appendChild(resultDiv);
+  }
+  
+  resultDiv.innerHTML = 'AI analyseert jouw notitie...';
+  
+  try {
+    // Verzamel alle notities van gebruiker
+    const userNotes = `
+Uiterlijk: ${wine.kleur} | ${wine.helderheid}
+Neus: ${wine.aroma}
+Notitie geur: ${wine.notitieGeur}
+Smaak: ${wine.smaak} | Body: ${wine.body} | Zuur: ${wine.zuur}
+Notitie smaak: ${wine.notitieSmaak}
+Kwaliteit: ${wine.kwaliteit}
+`;
+
+    const wineInfo = {
+      naam: wine.naam,
+      jaar: wine.jaar,
+      druif: wine.druif,
+      regio: wine.regio
+    };
+
+    // Roep serverless function aan
+    const response = await fetch('/api/check-wine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        wineInfo,
+        userNotes
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error);
+    }
+
+    const result = await response.json();
+    const { feedback, score } = result;
+
+    // Sla score op
+    if (score > 0) {
+      wine.aiScore = score;
+      wine.aiScoreDate = new Date().toLocaleDateString('nl-NL');
+      await saveWines();
+      
+      const profile = getCurrentProfile();
+      if (profile) {
+        const profileWine = profile.wines.find(w => w.noteId === wine.id);
+        if (profileWine) {
+          profileWine.aiScore = score;
+          profileWine.aiScoreDate = new Date().toLocaleDateString('nl-NL');
+          saveProfiles();
+        }
+      }
+    }
+
+    resultDiv.innerHTML = `
+      <div style="color: #4caf50; font-weight: bold; margin-bottom: 1rem;">✓ AI FEEDBACK</div>
+      ${feedback.split('\n').map(line => {
+        if (line.includes('**')) {
+          return `<div style="font-weight: 500; margin-top: 0.75rem; font-size: 13px;">${line.replace(/\*\*/g, '')}</div>`;
+        }
+        if (line.trim() === '') return '';
+        return `<div style="font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 0.5rem;">${line}</div>`;
+      }).join('')}
+    `;
+  } catch (err) {
+    resultDiv.innerHTML = `<span style="color: #c62828;">❌ Fout: ${err.message}</span>`;
   }
 }
 
@@ -1407,105 +1489,6 @@ async function analyzeLabel() {
     analyzeBtn.style.opacity = '1';
   }
 }
-
-async function checkWithAI(noteId) {
-  const wine = wines.find(w => w.id === noteId);
-  if (!wine) return;
-  
-  const app = document.getElementById('app');
-  let resultDiv = document.getElementById('ai-check-result');
-  
-  if (!resultDiv) {
-    resultDiv = document.createElement('div');
-    resultDiv.id = 'ai-check-result';
-    resultDiv.style.marginTop = '1rem';
-    resultDiv.style.padding = '1.5rem';
-    resultDiv.style.background = '#f5f5f5';
-    resultDiv.style.borderRadius = '4px';
-    resultDiv.style.border = '2px solid #4caf50';
-    app.appendChild(resultDiv);
-  }
-  
-  resultDiv.innerHTML = 'AI analyseert wijn...';
-  
-  try {
-    const analysisPrompt = `Je bent een WSET Level 2 sommelier. Analyseer deze wijn:
-${wine.naam} ${wine.jaar} - ${wine.druif} - ${wine.regio}
-
-Schrijf een korte expert proefnotitie (4-5 lijnen).`;
-
-    const expertNotice = await callGemini(analysisPrompt);
-    resultDiv.innerHTML = 'Vergelijkt met jouw notitie...';
-    
-    const comparisonPrompt = `Je expert proefnotitie:
-${expertNotice}
-
-Student notitie:
-Uiterlijk: ${wine.kleur} | ${wine.helderheid}
-Neus: ${wine.aroma}
-Smaak: ${wine.smaak} | Body: ${wine.body}
-Kwaliteit: ${wine.kwaliteit}
-
-Geef EXACT in dit format:
-
-**EXPERT ANALYSE**
-[2-3 zinnen wat deze wijn bijzonder maakt]
-
-**SCORE: X/10**
-[1 zin waarom]
-
-**FEEDBACK**
-✓ Goed: [1 ding]
-△ Beter: [1 ding]
-→ Tip: [1 tip]`;
-
-    const feedback = await callGemini(comparisonPrompt);
-    const scoreMatch = feedback.match(/SCORE:\s*(\d+)/);
-    const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
-    
-    if (score > 0) {
-      wine.aiScore = score;
-      wine.aiScoreDate = new Date().toLocaleDateString('nl-NL');
-      await saveWines();
-      
-      const profile = getCurrentProfile();
-      if (profile) {
-        const profileWine = profile.wines.find(w => w.noteId === wine.id);
-        if (profileWine) {
-          profileWine.aiScore = score;
-          profileWine.aiScoreDate = new Date().toLocaleDateString('nl-NL');
-          saveProfiles();
-        }
-      }
-    }
-    
-    resultDiv.innerHTML = `
-      <div style="color: #4caf50; font-weight: bold; margin-bottom: 1rem;">✓ AI FEEDBACK</div>
-      ${feedback.split('\n').map(line => {
-        if (line.includes('**')) {
-          return `<div style="font-weight: 500; margin-top: 0.75rem; font-size: 13px;">${line.replace(/\*\*/g, '')}</div>`;
-        }
-        if (line.trim() === '') return '';
-        return `<div style="font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 0.5rem;">${line}</div>`;
-      }).join('')}
-    `;
-  } catch (err) {
-    resultDiv.innerHTML = `<span style="color: #c62828;">❌ Fout: ${err.message}</span>`;
-  }
-}
-
-async function callGemini(prompt) {
-  const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
-    contents: [{
-      role: "user",
-      parts: [{ text: prompt }]
-    }]
-  });
-  
-  return response.text;
-}
-
 // ============= INIT =============
 
 async function init() {
