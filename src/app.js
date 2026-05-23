@@ -4,7 +4,7 @@ const ai = new GoogleGenAI({
   apiKey: import.meta.env.VITE_GEMINI_API_KEY
 });
 
-// App state (je gegevens in het geheugen)
+// App state
 let wines = [];
 let currentScreen = 'lijst';
 let chipState = {};
@@ -14,19 +14,144 @@ let currentSearch = '';
 let db;
 let profiles = [];
 let currentProfile = null;
+let editingWineId = null;
+let isLoggedIn = false;
 
+// ============= LOGIN SCREEN =============
+
+async function initLogin() {
+  if (!db) await initDB();
+  
+  return new Promise((resolve) => {
+    const tx = db.transaction('profiles', 'readonly');
+    const store = tx.objectStore('profiles');
+    const req = store.getAll();
+    
+    req.onsuccess = () => {
+      profiles = req.result;
+      if (profiles.length > 0) {
+        currentProfile = profiles[0].id;
+        isLoggedIn = true;
+      }
+      resolve();
+    };
+    req.onerror = () => resolve();
+  });
+}
+
+function showLoginScreen() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="app" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh;">
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <h1 style="font-size: 32px; margin: 0;">Hi</h1>
+        <input 
+          type="text" 
+          id="login-password" 
+          style="padding: 12px 16px; border: 0.5px solid var(--color-border); border-radius: 4px; font-size: 16px; width: 200px;"
+          onkeypress="if(event.key==='Enter') handleLogin()"
+        />
+        <h1 style="font-size: 32px; margin: 0;">👋</h1>
+      </div>
+    </div>
+  `;
+  
+  setTimeout(() => {
+    document.getElementById('login-password').focus();
+  }, 100);
+}
+
+function handleLogin() {
+  const password = document.getElementById('login-password').value.toLowerCase();
+  
+  if (password === 'girlie') {
+    if (profiles.length === 0) {
+      createProfile('Mijn profiel').then(() => {
+        isLoggedIn = true;
+        render();
+      });
+    } else if (profiles.length === 1) {
+      currentProfile = profiles[0].id;
+      isLoggedIn = true;
+      render();
+    } else {
+      showProfileSelector();
+    }
+  } else {
+    const input = document.getElementById('login-password');
+    input.style.borderColor = '#c62828';
+    input.value = '';
+    input.placeholder = 'Wrong password';
+    setTimeout(() => {
+      input.style.borderColor = 'var(--color-border)';
+      input.placeholder = 'Password...';
+    }, 2000);
+  }
+}
+
+function showProfileSelector() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="app" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; gap: 2rem;">
+      <div style="text-align: center;">
+        <h1 style="font-size: 24px; margin-bottom: 2rem;">Who are you?</h1>
+      </div>
+      
+      <div style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 10px;">
+        ${profiles.map(p => `
+          <button 
+            class="wine-card" 
+            onclick="selectProfile(${p.id})"
+            style="padding: 16px; text-align: left; cursor: pointer;">
+            <div style="font-weight: 500; font-size: 16px;">${p.name}</div>
+            <div style="font-size: 12px; color: #666; margin-top: 4px;">Created: ${p.createdAt}</div>
+          </button>
+        `).join('')}
+        
+        <button 
+          class="button"
+          onclick="createNewProfileFromLogin()"
+          style="width: 100%; margin-top: 1rem; background: #e8f5e9; color: #2e7d32;">
+          + Create new profile
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function selectProfile(profileId) {
+  currentProfile = profileId;
+  isLoggedIn = true;
+  render();
+}
+
+function createNewProfileFromLogin() {
+  const name = prompt('Profile name:');
+  if (name && name.trim()) {
+    createProfile(name.trim()).then(() => {
+      showProfileSelector();
+    });
+  }
+}
 
 // ============= OPSLAG =============
 
 async function initDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('WsetApp', 1);
+    const req = indexedDB.open('WsetApp', 2);
+    
     req.onupgradeneeded = (e) => {
       const database = e.target.result;
+      
       if (!database.objectStoreNames.contains('wines')) {
         database.createObjectStore('wines', { keyPath: 'id' });
       }
+      
+      if (!database.objectStoreNames.contains('profiles')) {
+        database.createObjectStore('profiles', { keyPath: 'id' });
+      }
     };
+    
     req.onsuccess = () => { 
       db = req.result;
       resolve(); 
@@ -43,7 +168,7 @@ async function loadWines() {
     const store = tx.objectStore('wines');
     const req = store.getAll();
     req.onsuccess = () => {
-      wines = req.result.reverse(); // Nieuwste eerst
+      wines = req.result.reverse();
       resolve();
     };
     req.onerror = () => reject(req.error);
@@ -66,68 +191,91 @@ async function saveWines() {
   });
 }
 
-async function deleteWineDB(id) {
+// ============= PROFIEL SYSTEM =============
+
+async function initProfiles() {
   if (!db) await initDB();
   
   return new Promise((resolve, reject) => {
-    const tx = db.transaction('wines', 'readwrite');
-    const store = tx.objectStore('wines');
-    const req = store.delete(id);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
+    const tx = db.transaction('profiles', 'readonly');
+    const store = tx.objectStore('profiles');
+    const req = store.getAll();
+    
+    req.onsuccess = () => {
+      profiles = req.result;
+      if (profiles.length === 0) {
+        createProfile('Mijn profiel').then(resolve);
+      } else {
+        currentProfile = profiles[0].id;
+        resolve();
+      }
+    };
+    req.onerror = () => {
+      console.error('Fout bij laden profielen');
+      createProfile('Mijn profiel').then(resolve);
+    };
   });
 }
 
-// ============= PROFIEL SYSTEM =============
-async function initProfiles() {
-  try {
-    const stored = await window.storage.get('wset-profiles');
-    if (stored && stored.value) {
-      profiles = JSON.parse(stored.value);
-      if (profiles.length === 0) {
-        createProfile('Mijn profiel');
-      } else {
-        currentProfile = profiles[0].id;
-      }
-    } else {
-      createProfile('Mijn profiel');
-    }
-  } catch (e) {
-    createProfile('Mijn profiel');
-  }
-}
-
 async function createProfile(name) {
+  if (!db) await initDB();
+  
   const profile = {
     id: Date.now(),
     name: name,
     createdAt: new Date().toLocaleDateString('nl-NL'),
     wines: []
   };
+  
   profiles.unshift(profile);
   currentProfile = profile.id;
   await saveProfiles();
 }
 
 async function saveProfiles() {
-  try {
-    await window.storage.set('wset-profiles', JSON.stringify(profiles));
-  } catch (e) {
-    console.error('Fout bij opslaan profielen:', e);
-  }
+  if (!db) await initDB();
+  
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('profiles', 'readwrite');
+    const store = tx.objectStore('profiles');
+    
+    store.clear();
+    
+    profiles.forEach(profile => {
+      store.add(profile);
+    });
+    
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 function getCurrentProfile() {
   return profiles.find(p => p.id === currentProfile);
 }
 
+// ============= WINE ID & DEDUP =============
+
+function generateWineId(naam, druif, jaar, regio) {
+  return `${naam.toLowerCase()}-${druif.toLowerCase()}-${jaar}-${regio.toLowerCase()}`;
+}
+
+function findExistingWine(naam, druif, jaar, regio) {
+  const wineId = generateWineId(naam, druif, jaar, regio);
+  return wines.find(w => w.wineId === wineId);
+}
+
+function getWineNotes(wineId) {
+  return wines.filter(w => w.wineId === wineId);
+}
+
 function addWineToProfile(wine) {
   const profile = getCurrentProfile();
   if (profile) {
-    // Controleer of wijn al in profiel zit
-    if (!profile.wines.find(w => w.wineId === wine.id)) {
+    if (!profile.wines.find(w => w.noteId === wine.id)) {
       profile.wines.push({
-        wineId: wine.id,
+        noteId: wine.id,
+        wineId: wine.wineId,
         addedDate: new Date().toLocaleDateString('nl-NL'),
         aiScore: wine.aiScore || null,
         aiScoreDate: wine.aiScoreDate || null
@@ -155,7 +303,13 @@ function getProfileStats(profileId) {
 }
 
 // ============= INTERFACE =============
+
 function render() {
+  if (!isLoggedIn) {
+    showLoginScreen();
+    return;
+  }
+  
   const app = document.getElementById('app');
   
   if (currentScreen === 'lijst') {
@@ -166,6 +320,8 @@ function render() {
     renderScan(app);
   } else if (currentScreen === 'profielen') {
     renderProfiles(app);
+  } else if (currentScreen === 'wijndetails') {
+    renderWineDetails(app);
   }
 }
 
@@ -180,17 +336,14 @@ function renderList(container) {
       <h1>Mijn wijnen</h1>
       <button class="button" onclick="switchScreen('nieuw')" style="width: 100%; margin-bottom: 1rem;">+ Nieuwe notitie</button>
       
-      <!-- ZOEKBALK -->
       <input type="text" id="search" placeholder="Zoek op naam, druif, regio..." style="width: 100%; margin-bottom: 1rem; padding: 8px; border: 0.5px solid var(--color-border); border-radius: 4px;" oninput="filterAndSearch()">
       
-      <!-- FILTERS -->
       <div id="filters" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem;"></div>
       
       <div class="wine-list" id="wine-list"></div>
     </div>
   `;
   
-  // Setup zoeken
   const searchInput = document.getElementById('search');
   if (searchInput) {
     searchInput.addEventListener('input', filterAndSearch);
@@ -200,21 +353,20 @@ function renderList(container) {
 }
 
 function renderFiltersAndList() {
-  const druiven = [...new Set(wines.map(w => w.druif).filter(Boolean))];
+  const uniqueWines = [...new Map(wines.map(w => [w.wineId, w])).values()];
+  const druiven = [...new Set(uniqueWines.map(w => w.druif).filter(Boolean))];
   const filterDiv = document.getElementById('filters');
   
   if (!filterDiv) return;
   
   filterDiv.innerHTML = '';
   
-  // "Alles" knop
   const allBtn = document.createElement('button');
   allBtn.className = 'filter-chip' + (currentFilter === null ? ' active' : '');
   allBtn.textContent = 'Alles';
   allBtn.onclick = () => { currentFilter = null; renderFiltersAndList(); filterAndSearch(); };
   filterDiv.appendChild(allBtn);
   
-  // Druif knoppen
   druiven.forEach(druif => {
     const btn = document.createElement('button');
     btn.className = 'filter-chip' + (druif === currentFilter ? ' active' : '');
@@ -244,7 +396,6 @@ function renderProfiles(container) {
     return;
   }
   
-  // Sorteer op gemiddelde score
   const profilesWithStats = profiles.map(p => ({
     ...p,
     stats: getProfileStats(p.id)
@@ -264,21 +415,21 @@ function renderProfiles(container) {
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div>
             <div style="font-weight: 500; font-size: 15px;">${medal} ${p.name}</div>
-            <div style="font-size: 12px; color: var(--color-text-tertiary); margin-top: 4px;">Aangemaakt: ${p.createdAt}</div>
+            <div style="font-size: 12px; color: #999; margin-top: 4px;">Aangemaakt: ${p.createdAt}</div>
           </div>
           ${stats ? `
             <div style="text-align: right;">
               <div style="font-size: 24px; font-weight: bold; color: #4caf50;">${stats.averageScore}</div>
-              <div style="font-size: 11px; color: var(--color-text-secondary);">gemiddeld</div>
+              <div style="font-size: 11px; color: #666;">gemiddeld</div>
             </div>
           ` : ''}
         </div>
         ${stats ? `
-          <div style="margin-top: 8px; font-size: 12px; color: var(--color-text-secondary);">
+          <div style="margin-top: 8px; font-size: 12px; color: #666;">
             ${stats.scoredWines}/${stats.totalWines} wijnen beoordeeld
           </div>
         ` : `
-          <div style="margin-top: 8px; font-size: 12px; color: var(--color-text-secondary); font-style: italic;">
+          <div style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic;">
             Nog geen wijnen beoordeeld
           </div>
         `}
@@ -286,8 +437,8 @@ function renderProfiles(container) {
           <button class="button" onclick="selectProfileAndNew(${p.id})" style="font-size: 12px; padding: 6px; background: #e8f5e9; color: #2e7d32;">+ Nieuw</button>
           <button class="button" onclick="viewProfileWines(event, ${p.id})" style="font-size: 12px; padding: 6px;">Geschiedenis</button>
         </div>
-      <button class="button" onclick="deleteProfile(event, ${p.id})" style="width: 100%; margin-top: 4px; font-size: 12px; padding: 6px; background: #ffebee; color: #c62828;">Verwijderen</button>
-    </div>
+        <button class="button" onclick="deleteProfile(event, ${p.id})" style="width: 100%; margin-top: 4px; font-size: 12px; padding: 6px; background: #ffebee; color: #c62828;">Verwijderen</button>
+      </div>
     `;
   }).join('');
 }
@@ -324,18 +475,17 @@ function viewProfileWines(event, profileId) {
     return;
   }
   
-  // Sorteer op score (hoogste eerst)
   const profileWinesSorted = [...profile.wines].sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
   
   list.innerHTML = profileWinesSorted.map(pw => {
-    const w = wines.find(wine => wine.id === pw.wineId);
+    const w = wines.find(wine => wine.id === pw.noteId);
     if (!w) return '';
     return `
-      <div class="wine-card" onclick="showDetail(${w.id})">
+      <div class="wine-card" onclick="showWineGroupDetail('${w.wineId}')">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div>
             <div style="font-weight: 500;">${w.naam}</div>
-            <div style="font-size: 12px; color: var(--color-text-tertiary); margin-top: 2px;">
+            <div style="font-size: 12px; color: #999; margin-top: 2px;">
               ${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}
             </div>
           </div>
@@ -343,7 +493,7 @@ function viewProfileWines(event, profileId) {
             <div style="font-size: 20px; font-weight: bold; color: #4caf50;">${pw.aiScore}</div>
           ` : ''}
         </div>
-        ${pw.aiScoreDate ? `<div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 4px;">Beoordeeld: ${pw.aiScoreDate}</div>` : ''}
+        ${pw.aiScoreDate ? `<div style="font-size: 11px; color: #999; margin-top: 4px;">Beoordeeld: ${pw.aiScoreDate}</div>` : ''}
       </div>
     `;
   }).join('');
@@ -365,16 +515,15 @@ function deleteProfile(event, profileId) {
 
 function selectProfileAndNew(profileId) {
   currentProfile = profileId;
+  editingWineId = null;
   switchScreen('nieuw');
 }
 
 function setFilter(druif) {
   currentFilter = druif;
-  // Update alle filter buttons
   document.querySelectorAll('.filter-chip').forEach(btn => {
     btn.classList.remove('active');
   });
-  // Activeer de geklikt button
   event.target.classList.add('active');
   filterAndSearch();
 }
@@ -383,12 +532,12 @@ function filterAndSearch() {
   const searchInput = document.getElementById('search');
   currentSearch = searchInput ? searchInput.value.toLowerCase() : '';
   
-  // Filter op druivenras
-  let filtered = currentFilter 
-    ? wines.filter(w => w.druif === currentFilter)
-    : wines;
+  const uniqueWines = [...new Map(wines.map(w => [w.wineId, w])).values()];
   
-  // Filter op zoekterm
+  let filtered = currentFilter 
+    ? uniqueWines.filter(w => w.druif === currentFilter)
+    : uniqueWines;
+  
   if (currentSearch) {
     filtered = filtered.filter(w => 
       (w.naam && w.naam.toLowerCase().includes(currentSearch)) ||
@@ -397,7 +546,6 @@ function filterAndSearch() {
     );
   }
   
-  // Render de lijst
   const list = document.getElementById('wine-list');
   if (!list) return;
   
@@ -405,25 +553,29 @@ function filterAndSearch() {
     list.innerHTML = '<div class="empty-state">Geen wijnen gevonden</div>';
   } else {
     list.innerHTML = filtered.map(w => {
-      // Vind alle profielen die deze wijn hebben beoordeeld
+      const allNotesForWine = getWineNotes(w.wineId);
       const reviewingProfiles = profiles.filter(p => 
-        p.wines.find(pw => pw.wineId === w.id)
+        p.wines.find(pw => pw.wineId === w.wineId)
       );
+      
       return `
-        <div class="wine-card" onclick="showDetail(${w.id})">
+        <div class="wine-card" onclick="showWineGroupDetail('${w.wineId}')">
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
               <div style="font-weight: 500;">${w.naam}</div>
-              <div style="font-size: 12px; color: var(--color-text-secondary);">
+              <div style="font-size: 12px; color: #666;">
                 ${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}
+              </div>
+              <div style="font-size: 11px; color: #999; margin-top: 4px;">
+                ${allNotesForWine.length} notitie${allNotesForWine.length !== 1 ? 's' : ''}
               </div>
             </div>
             ${reviewingProfiles.length > 0 ? `
               <div style="display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;">
                 ${reviewingProfiles.map(p => {
-                  const profileWine = p.wines.find(pw => pw.wineId === w.id);
+                  const profileWine = p.wines.find(pw => pw.wineId === w.wineId);
                   return `
-                    <button class="chip" onclick="event.stopPropagation(); showWineReviews(${w.id})" style="font-size: 11px; padding: 4px 8px; cursor: pointer;">
+                    <button class="chip" onclick="event.stopPropagation(); showWineReviews('${w.wineId}')" style="font-size: 11px; padding: 4px 8px; cursor: pointer;">
                       ${p.name} ${profileWine.aiScore ? '(' + profileWine.aiScore + ')' : ''}
                     </button>
                   `;
@@ -431,19 +583,232 @@ function filterAndSearch() {
               </div>
             ` : ''}
           </div>
-          <div style="font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px;">
-            ${w.datum}
-          </div>
         </div>
       `;
     }).join('');
   }
 }
 
+// ============= WINE GROUP DETAIL =============
+
+function showWineGroupDetail(wineId) {
+  const allNotes = getWineNotes(wineId);
+  if (allNotes.length === 0) return;
+  
+  const firstNote = allNotes[0];
+  const currentProf = getCurrentProfile();
+  const myNote = allNotes.find(n => {
+    const profileNote = currentProf?.wines.find(pw => pw.noteId === n.id);
+    return !!profileNote;
+  });
+  
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="app">
+      <button class="button" onclick="switchScreen('lijst')" style="margin-bottom: 1rem;">← Terug</button>
+      
+      <h2>${firstNote.naam}</h2>
+      <div style="font-size: 13px; color: #666; margin-bottom: 1rem;">
+        ${[firstNote.druif, firstNote.regio, firstNote.jaar].filter(Boolean).join(' · ')}
+      </div>
+      
+      <div id="notes-tabs" style="display: flex; gap: 8px; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem; overflow-x: auto;"></div>
+      
+      <div id="notes-content"></div>
+      
+      ${myNote ? `
+        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--color-border);">
+          <button class="button" onclick="editWine(${myNote.id})" style="width: 100%; background: #e3f2fd; color: #1976d2; margin-bottom: 0.5rem;">✏️ Mijn notitie bewerken</button>
+          <button class="button" onclick="addNoteToWine('${wineId}')" style="width: 100%; background: #e8f5e9; color: #2e7d32;">+ Nog een notitie voor deze wijn</button>
+        </div>
+      ` : `
+        <button class="button" onclick="addNoteToWine('${wineId}')" style="width: 100%; background: #e8f5e9; color: #2e7d32; margin-top: 2rem;">+ Voeg notitie toe</button>
+      `}
+    </div>
+  `;
+  
+  const tabsDiv = document.getElementById('notes-tabs');
+  tabsDiv.innerHTML = allNotes.map((note, idx) => {
+    const profile = profiles.find(p => p.wines.find(pw => pw.noteId === note.id));
+    const isMyNote = myNote?.id === note.id;
+    return `
+      <button class="filter-chip ${idx === 0 ? 'active' : ''}" onclick="showNoteDetail(${note.id}, '${wineId}')" style="padding: 6px 12px;">
+        ${profile?.name || 'Onbekend'} ${isMyNote ? '(jij)' : ''}
+      </button>
+    `;
+  }).join('');
+  
+  showNoteDetail(allNotes[0].id, wineId);
+}
+
+function showNoteDetail(noteId, wineId) {
+  const note = wines.find(w => w.id === noteId);
+  if (!note) return;
+  
+  const row = (label, val) => val ? `<tr><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); color: #666; width: 120px;">${label}</td><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); font-weight: 500;">${val}</td></tr>` : '';
+  
+  const contentDiv = document.getElementById('notes-content');
+  contentDiv.innerHTML = `
+    <div class="card">
+      <div class="section-title">Wijninfo</div>
+      <table style="width: 100%; border-collapse: collapse;">
+        ${row('Jaar', note.jaar)}
+        ${row('Druif', note.druif)}
+        ${row('Regio', note.regio)}
+        ${row('Prijs', note.prijs)}
+        ${row('Gastronomie', note.gastro)}
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Uiterlijk</div>
+      <table style="width: 100%; border-collapse: collapse;">
+        ${row('Helderheid', note.helderheid)}
+        ${row('Intensiteit', note.intensiteit)}
+        ${row('Kleur', note.kleur)}
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Geur</div>
+      <table style="width: 100%; border-collapse: collapse;">
+        ${row('Conditie', note.conditie)}
+        ${row('Intensiteit', note.geurInt)}
+        ${row('Aroma' + "'" + 's', note.aroma)}
+      </table>
+      ${note.notitieGeur ? `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px;">${note.notitieGeur}</div>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="section-title">Smaak</div>
+      <table style="width: 100%; border-collapse: collapse;">
+        ${row('Zoetheid', note.zoetheid)}
+        ${row('Zuur', note.zuur)}
+        ${row('Tannine', note.tannine)}
+        ${row('Body', note.body)}
+        ${row('Intensiteit', note.smaakInt)}
+        ${row('Smaken', note.smaak)}
+        ${row('Afdronk', note.afdronk)}
+      </table>
+      ${note.notitieSmaak ? `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px;">${note.notitieSmaak}</div>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="section-title">Conclusie</div>
+      <table style="width: 100%; border-collapse: collapse;">
+        ${row('Kwaliteit', note.kwaliteit)}
+      </table>
+    </div>
+
+    <button class="button" onclick="checkWithAI(${note.id})" style="width: 100%; margin-top: 1rem; background: #e8f5e9; color: #2e7d32; font-weight: 500;">🔍 Laat nakijken door AI-sommelier</button>
+  `;
+}
+
+function addNoteToWine(wineId) {
+  editingWineId = null;
+  const existingNote = wines.find(w => w.wineId === wineId);
+  if (existingNote) {
+    scannedWineData = {
+      naam: existingNote.naam,
+      druif: existingNote.druif,
+      jaar: existingNote.jaar,
+      regio: existingNote.regio,
+      type: existingNote.type
+    };
+  }
+  switchScreen('nieuw');
+  
+  setTimeout(() => {
+    if (existingNote) {
+      document.getElementById('f-naam').value = existingNote.naam;
+      document.getElementById('f-jaar').value = existingNote.jaar;
+      document.getElementById('f-druif').value = existingNote.druif;
+      document.getElementById('f-regio').value = existingNote.regio;
+    }
+    window.scrollTo(0, 0);
+  }, 50);
+}
+
+function editWine(noteId) {
+  editingWineId = noteId;
+  const wine = wines.find(w => w.id === noteId);
+  if (!wine) return;
+  
+  switchScreen('nieuw');
+  
+  setTimeout(() => {
+    // Pre-fill text fields
+    document.getElementById('f-naam').value = wine.naam;
+    document.getElementById('f-jaar').value = wine.jaar;
+    document.getElementById('f-druif').value = wine.druif;
+    document.getElementById('f-regio').value = wine.regio;
+    document.getElementById('f-prijs').value = wine.prijs;
+    document.getElementById('f-gastro').value = wine.gastro;
+    
+    // Reset all chips first
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+    chipState = {};
+    
+    // Helper to select single chips
+    const selectChip = (groupId, value) => {
+      document.querySelectorAll(`#chips-${groupId} .chip`).forEach(btn => {
+        if (btn.textContent.trim() === value.trim()) {
+          btn.classList.add('selected');
+          chipState[groupId] = value;
+        }
+      });
+    };
+    
+    // Select single-select chips
+    if (wine.helderheid) selectChip('helderheid', wine.helderheid);
+    if (wine.intensiteit) selectChip('intensiteit', wine.intensiteit);
+    if (wine.kleur) selectChip('kleur', wine.kleur);
+    if (wine.conditie) selectChip('conditie', wine.conditie);
+    if (wine.geurInt) selectChip('geur-int', wine.geurInt);
+    if (wine.zoetheid) selectChip('zoetheid', wine.zoetheid);
+    if (wine.zuur) selectChip('zuur', wine.zuur);
+    if (wine.tannine) selectChip('tannine', wine.tannine);
+    if (wine.body) selectChip('body', wine.body);
+    if (wine.smaakInt) selectChip('smaak-int', wine.smaakInt);
+    if (wine.afdronk) selectChip('afdronk', wine.afdronk);
+    if (wine.kwaliteit) selectChip('kwaliteit', wine.kwaliteit);
+    
+    // Multi-select: aroma
+    if (wine.aroma) {
+      const aromaList = wine.aroma.split(', ');
+      chipState['aroma'] = aromaList;
+      document.querySelectorAll('#chips-aroma .chip').forEach(btn => {
+        if (aromaList.includes(btn.textContent.trim())) {
+          btn.classList.add('selected');
+        }
+      });
+    }
+    
+    // Multi-select: smaak
+    if (wine.smaak) {
+      const smaakList = wine.smaak.split(', ');
+      chipState['smaak'] = smaakList;
+      document.querySelectorAll('#chips-smaak .chip').forEach(btn => {
+        if (smaakList.includes(btn.textContent.trim())) {
+          btn.classList.add('selected');
+        }
+      });
+    }
+    
+    // Textareas
+    document.getElementById('f-notitie-geur').value = wine.notitieGeur;
+    document.getElementById('f-notitie-smaak').value = wine.notitieSmaak;
+    
+    window.scrollTo(0, 0);
+  }, 100);
+}
+
 function renderForm(container) {
+  const isEditing = editingWineId !== null;
+  
   container.innerHTML = `
     <div class="app">
-      <h1>Proefformulier</h1>
+      <h1>${isEditing ? 'Wijzigingen opslaan' : 'Proefformulier'}</h1>
       
       <button class="button" onclick="switchScreen('scan')" style="width: 100%; margin-bottom: 1rem;">📸 Etiket scannen</button>
       
@@ -670,7 +1035,7 @@ function renderForm(container) {
         </div>
       </div>
 
-      <button class="button" onclick="saveWine()" style="width: 100%;">Opslaan</button>
+      <button class="button" onclick="saveWine()" style="width: 100%;">${isEditing ? 'Wijzigingen opslaan' : 'Opslaan'}</button>
       <button class="button" onclick="switchScreen('lijst')" style="width: 100%; margin-top: 0.5rem;">Annuleren</button>
     </div>
   `;
@@ -710,19 +1075,15 @@ function renderScan(container) {
 function useScannedWine() {
   if (!scannedWineData) return;
   
-  // Ga naar formulier
+  editingWineId = null;
   switchScreen('nieuw');
   
-  // Wacht even zodat formulier geladen is
   setTimeout(() => {
-    // Vul velden in (laat leeg als niet aanwezig)
     if (scannedWineData.naam) document.getElementById('f-naam').value = scannedWineData.naam;
     if (scannedWineData.druif) document.getElementById('f-druif').value = scannedWineData.druif;
     if (scannedWineData.jaar) document.getElementById('f-jaar').value = scannedWineData.jaar;
     if (scannedWineData.regio) document.getElementById('f-regio').value = scannedWineData.regio;
-    if (scannedWineData.type) document.getElementById('f-type').value = scannedWineData.type;
     
-    // Scroll naar top
     window.scrollTo(0, 0);
   }, 100);
 }
@@ -731,14 +1092,12 @@ function toggleChip(el, group) {
   const multiSelect = ['aroma', 'smaak'].includes(group);
   
   if (!multiSelect) {
-    // Single select
     document.querySelectorAll(`#chips-${group} .chip.selected`).forEach(c => {
       c.classList.remove('selected');
     });
     el.classList.add('selected');
     chipState[group] = el.textContent.trim();
   } else {
-    // Multi select
     el.classList.toggle('selected');
     if (!chipState[group]) chipState[group] = [];
     const text = el.textContent.trim();
@@ -751,7 +1110,7 @@ function toggleChip(el, group) {
 }
 
 function setupChips() {
-  // Chip-listeners zijn al ingesteld via onclick
+  // Chip listeners already set via onclick
 }
 
 function getChips(group) {
@@ -767,44 +1126,90 @@ function saveWine() {
     return;
   }
   
-  const wine = {
-    id: Date.now(),
-    naam,
-    jaar: document.getElementById('f-jaar').value.trim(),
-    druif: document.getElementById('f-druif').value.trim(),
-    regio: document.getElementById('f-regio').value.trim(),
-    prijs: document.getElementById('f-prijs').value.trim(),
-    gastro: document.getElementById('f-gastro').value.trim(),
-    
-    // Uiterlijk
-    helderheid: getChips('helderheid'),
-    intensiteit: getChips('intensiteit'),
-    kleur: getChips('kleur'),
-    
-    // Geur
-    conditie: getChips('conditie'),
-    geurInt: getChips('geur-int'),
-    aroma: getChips('aroma'),
-    notitieGeur: document.getElementById('f-notitie-geur').value.trim(),
-    
-    // Smaak
-    zoetheid: getChips('zoetheid'),
-    zuur: getChips('zuur'),
-    tannine: getChips('tannine'),
-    body: getChips('body'),
-    smaakInt: getChips('smaak-int'),
-    smaak: getChips('smaak'),
-    afdronk: getChips('afdronk'),
-    notitieSmaak: document.getElementById('f-notitie-smaak').value.trim(),
-    
-    // Conclusie
-    kwaliteit: getChips('kwaliteit'),
-    
-    datum: new Date().toLocaleDateString('nl-NL')
-  };
+  const druif = document.getElementById('f-druif').value.trim();
+  const jaar = document.getElementById('f-jaar').value.trim();
+  const regio = document.getElementById('f-regio').value.trim();
   
-  wines.unshift(wine);
-  addWineToProfile(wine);
+  const wineId = generateWineId(naam, druif, jaar, regio);
+  
+  if (editingWineId) {
+    // EDIT MODE
+    const wineIdx = wines.findIndex(w => w.id === editingWineId);
+    if (wineIdx === -1) return;
+    
+    wines[wineIdx] = {
+      ...wines[wineIdx],
+      naam,
+      druif,
+      jaar,
+      regio,
+      wineId,
+      prijs: document.getElementById('f-prijs').value.trim(),
+      gastro: document.getElementById('f-gastro').value.trim(),
+      helderheid: getChips('helderheid'),
+      intensiteit: getChips('intensiteit'),
+      kleur: getChips('kleur'),
+      conditie: getChips('conditie'),
+      geurInt: getChips('geur-int'),
+      aroma: getChips('aroma'),
+      notitieGeur: document.getElementById('f-notitie-geur').value.trim(),
+      zoetheid: getChips('zoetheid'),
+      zuur: getChips('zuur'),
+      tannine: getChips('tannine'),
+      body: getChips('body'),
+      smaakInt: getChips('smaak-int'),
+      smaak: getChips('smaak'),
+      afdronk: getChips('afdronk'),
+      notitieSmaak: document.getElementById('f-notitie-smaak').value.trim(),
+      kwaliteit: getChips('kwaliteit'),
+      editedAt: new Date().toLocaleDateString('nl-NL')
+    };
+    
+    editingWineId = null;
+  } else {
+    // NEW MODE
+    const existingWine = findExistingWine(naam, druif, jaar, regio);
+    
+    if (existingWine) {
+      const confirmed = confirm(`Deze wijn bestaat al (${getWineNotes(wineId).length} notitie${getWineNotes(wineId).length !== 1 ? 's' : ''}). Wil je een nieuwe notitie toevoegen?`);
+      if (!confirmed) {
+        resetForm();
+        return;
+      }
+    }
+    
+    const wine = {
+      id: Date.now(),
+      wineId,
+      naam,
+      druif,
+      jaar,
+      regio,
+      prijs: document.getElementById('f-prijs').value.trim(),
+      gastro: document.getElementById('f-gastro').value.trim(),
+      helderheid: getChips('helderheid'),
+      intensiteit: getChips('intensiteit'),
+      kleur: getChips('kleur'),
+      conditie: getChips('conditie'),
+      geurInt: getChips('geur-int'),
+      aroma: getChips('aroma'),
+      notitieGeur: document.getElementById('f-notitie-geur').value.trim(),
+      zoetheid: getChips('zoetheid'),
+      zuur: getChips('zuur'),
+      tannine: getChips('tannine'),
+      body: getChips('body'),
+      smaakInt: getChips('smaak-int'),
+      smaak: getChips('smaak'),
+      afdronk: getChips('afdronk'),
+      notitieSmaak: document.getElementById('f-notitie-smaak').value.trim(),
+      kwaliteit: getChips('kwaliteit'),
+      datum: new Date().toLocaleDateString('nl-NL')
+    };
+    
+    wines.unshift(wine);
+    addWineToProfile(wine);
+  }
+  
   saveWines();
   resetForm();
   switchScreen('lijst');
@@ -824,95 +1229,12 @@ function switchScreen(screen) {
   render();
 }
 
-function getSelectedChips(groupId) {
-  const selected = document.querySelectorAll(`#chips-${groupId} .chip.selected`);
-  return Array.from(selected).map(el => el.textContent).join(', ');
-}
-
-function showDetail(id) {
-  const wine = wines.find(w => w.id === id);
-  if (!wine) return;
-  
-  const app = document.getElementById('app');
-  const row = (label, val) => val ? `<tr><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); color: var(--color-text-secondary); width: 120px;">${label}</td><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); font-weight: 500;">${val}</td></tr>` : '';
-  
-  app.innerHTML = `
-    <div class="app">
-      <button class="button" onclick="switchScreen('lijst')" style="margin-bottom: 1rem;">← Terug</button>
-      
-      <div class="card">
-        <h2 style="margin-bottom: 0.5rem;">${wine.naam}</h2>
-        <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 1rem;">${wine.datum}</div>
-        
-        <table style="width: 100%; border-collapse: collapse;">
-          ${row('Jaar', wine.jaar)}
-          ${row('Druif', wine.druif)}
-          ${row('Regio', wine.regio)}
-          ${row('Prijs', wine.prijs)}
-          ${row('Gastronomie', wine.gastro)}
-        </table>
-      </div>
-
-      <div class="card">
-        <div class="section-title">Uiterlijk</div>
-        <table style="width: 100%; border-collapse: collapse;">
-          ${row('Helderheid', wine.helderheid)}
-          ${row('Intensiteit', wine.intensiteit)}
-          ${row('Kleur', wine.kleur)}
-        </table>
-      </div>
-
-      <div class="card">
-        <div class="section-title">Geur</div>
-        <table style="width: 100%; border-collapse: collapse;">
-          ${row('Conditie', wine.conditie)}
-          ${row('Intensiteit', wine.geurInt)}
-          ${row('Aroma\'s', wine.aroma)}
-        </table>
-        ${wine.notitieGeur ? `<div style="margin-top: 8px; padding: 8px; background: var(--color-bg-secondary); border-radius: 4px; font-size: 13px;">${wine.notitieGeur}</div>` : ''}
-      </div>
-
-      <div class="card">
-        <div class="section-title">Smaak</div>
-        <table style="width: 100%; border-collapse: collapse;">
-          ${row('Zoetheid', wine.zoetheid)}
-          ${row('Zuur', wine.zuur)}
-          ${row('Tannine', wine.tannine)}
-          ${row('Body', wine.body)}
-          ${row('Intensiteit', wine.smaakInt)}
-          ${row('Smaken', wine.smaak)}
-          ${row('Afdronk', wine.afdronk)}
-        </table>
-        ${wine.notitieSmaak ? `<div style="margin-top: 8px; padding: 8px; background: var(--color-bg-secondary); border-radius: 4px; font-size: 13px;">${wine.notitieSmaak}</div>` : ''}
-      </div>
-
-      <div class="card">
-        <div class="section-title">Conclusie</div>
-        <table style="width: 100%; border-collapse: collapse;">
-          ${row('Kwaliteit', wine.kwaliteit)}
-        </table>
-      </div>
-      <div class="card" style="background: #f5f5f5; border-left: 4px solid #4caf50;">
-        <div class="section-title">Expert vs. Jij</div>
-        <div style="font-size: 12px; color: var(--color-text-secondary); line-height: 1.6;">
-          Heb je de AI-checker al gebruikt? Klik op "Laat nakijken door AI-sommelier" om je antwoorden te vergelijken met een expert sommelier.
-        </div>
-      </div>
-
-      <button class="button" onclick="checkWithAI(${wine.id})" style="width: 100%; margin-top: 1rem; background: #e8f5e9; color: #2e7d32; font-weight: 500;">🔍 Laat nakijken door AI-sommelier</button>
-      
-      <button class="button" onclick="deleteWine(${wine.id})" style="width: 100%; margin-top: 0.5rem; background: #ffebee; color: #c62828;">Verwijderen</button>
-    </div>
-  `;
-}
-
 function showWineReviews(wineId) {
-  const wine = wines.find(w => w.id === wineId);
+  const note = wines.find(w => w.wineId === wineId);
   const reviewingProfiles = profiles.filter(p => 
     p.wines.find(pw => pw.wineId === wineId)
   );
   
-  const app = document.getElementById('app');
   const reviewsDiv = document.createElement('div');
   reviewsDiv.id = 'wine-reviews-modal';
   reviewsDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;';
@@ -920,15 +1242,15 @@ function showWineReviews(wineId) {
   reviewsDiv.innerHTML = `
     <div style="background: white; border-radius: 8px; padding: 2rem; max-width: 500px; max-height: 80vh; overflow-y: auto; width: 90%;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <h2 style="margin: 0;">${wine.naam}</h2>
+        <h2 style="margin: 0;">${note.naam}</h2>
         <button onclick="document.getElementById('wine-reviews-modal').remove()" style="background: none; border: none; font-size: 20px; cursor: pointer;">✕</button>
       </div>
       
-      <div style="display: flex; gap: 8px; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 1rem;">
+      <div style="display: flex; gap: 8px; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 1rem; overflow-x: auto;">
         ${reviewingProfiles.map(p => {
           const profileWine = p.wines.find(pw => pw.wineId === wineId);
           return `
-            <button class="filter-chip" onclick="showReviewTab('${p.id}')" id="tab-${p.id}" style="border: none; padding: 8px 12px;">
+            <button class="filter-chip" onclick="showReviewTab('${p.id}', '${wineId}')" id="tab-${p.id}" style="border: none; padding: 8px 12px;">
               ${p.name} ${profileWine.aiScore ? '(' + profileWine.aiScore + ')' : ''}
             </button>
           `;
@@ -941,34 +1263,31 @@ function showWineReviews(wineId) {
   
   document.body.appendChild(reviewsDiv);
   
-  // Show first profile's review
   if (reviewingProfiles.length > 0) {
     showReviewTab(reviewingProfiles[0].id, wineId);
   }
 }
 
 function showReviewTab(profileId, wineId) {
-  const wine = wines.find(w => w.id === wineId);
+  const wine = wines.find(w => w.wineId === wineId);
   const profile = profiles.find(p => p.id === profileId);
   const profileWine = profile.wines.find(w => w.wineId === wineId);
   
-  // Update tab styling
   document.querySelectorAll('.filter-chip').forEach(btn => {
     btn.classList.remove('active');
   });
   document.getElementById(`tab-${profileId}`).classList.add('active');
   
-  // Show review content
   document.getElementById('review-content').innerHTML = `
-    <div style="font-size: 13px; line-height: 1.6; color: var(--color-text-secondary);">
+    <div style="font-size: 13px; line-height: 1.6; color: #666;">
       <div style="margin-bottom: 1rem;">
-        <div style="font-weight: 500; color: var(--color-text-primary);">Profiel:</div>
+        <div style="font-weight: 500; color: #000;">Profiel:</div>
         ${profile.name}
       </div>
       
       ${profileWine.aiScore ? `
         <div style="margin-bottom: 1rem;">
-          <div style="font-weight: 500; color: var(--color-text-primary);">Score:</div>
+          <div style="font-weight: 500; color: #000;">Score:</div>
           <div style="font-size: 24px; font-weight: bold; color: #4caf50;">${profileWine.aiScore}/10</div>
         </div>
       ` : `
@@ -976,7 +1295,7 @@ function showReviewTab(profileId, wineId) {
       `}
       
       ${profileWine.aiScoreDate ? `
-        <div style="font-size: 11px; color: var(--color-text-tertiary);">
+        <div style="font-size: 11px; color: #999;">
           Beoordeeld: ${profileWine.aiScoreDate}
         </div>
       ` : ''}
@@ -988,9 +1307,8 @@ function deleteWine(id) {
   if (confirm('Weet je zeker?')) {
     wines = wines.filter(w => w.id !== id);
     
-    // Verwijder ook uit alle profielen
     profiles.forEach(p => {
-      p.wines = p.wines.filter(w => w.wineId !== id);
+      p.wines = p.wines.filter(w => w.noteId !== id);
     });
     
     saveWines();
@@ -1012,21 +1330,20 @@ function handleImageUpload(event) {
       mediaType: mediaType
     };
     document.getElementById('preview-img').src = result;
-    document.getElementById('preview').style.display = 'block'; 
+    document.getElementById('preview').style.display = 'block';
     document.getElementById('analyze-btn').style.display = 'block';
     document.getElementById('scan-status').style.display = 'none';
   };
   reader.readAsDataURL(file);
 }
 
-// ============= AI SERVICE (pluggable) =============
-const AI_PROVIDER = 'gemini'; // 'gemini' of 'claude' — wissel hier later!
+// ============= AI SERVICE =============
+
+const AI_PROVIDER = 'gemini';
 
 async function analyzeWineLabel(imageBase64, mediaType) {
   if (AI_PROVIDER === 'gemini') {
     return analyzeWithGemini(imageBase64, mediaType);
-  } else if (AI_PROVIDER === 'claude') {
-    return analyzeWithClaude(imageBase64, mediaType);
   }
 }
 
@@ -1044,72 +1361,19 @@ async function analyzeWithGemini(imageBase64, mediaType) {
             }
           },
           {
-            text: 'Analyseer dit wijnetiket. Geef ALLEEN een JSON object (geen markdown, geen backticks) met deze velden: naam, druif, jaar, regio, type (Rood/Wit/Rosé/Mousseux/Dessertwijn). Zet null voor onleesbare velden.'
+            text: 'Analyseer dit wijnetiket. Geef ALLEEN een JSON object (geen markdown, geen backticks) met deze velden: naam, druif, jaar, regio, type. Zet null voor onleesbare velden.'
           }
         ]
       }]
     });
 
-    console.log('Gemini response:', response.text);
     const jsonMatch = response.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('Kon JSON niet uit respons halen');
     
     return JSON.parse(jsonMatch[0]);
   } catch (err) {
     console.error('Gemini fout:', err);
-    throw new Error('Kon etiket niet herkennen met Gemini');
-  }
-}
-
-async function analyzeWithClaude(imageBase64, mediaType) {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error('Claude API key niet ingesteld');
-  }
-  
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 500,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mediaType,
-                data: imageBase64
-              }
-            },
-            {
-              type: 'text',
-              text: 'Analyseer dit wijnetiket. Geef ALLEEN een JSON object (geen markdown, geen backticks) met deze velden: naam, druif, jaar, regio, type (Rood/Wit/Rosé/Mousseux/Dessertwijn). Zet null voor onleesbare velden.'
-            }
-          ]
-        }]
-      })
-    });
-    
-    const data = await response.json();
-    if (!data.content?.[0]?.text) {
-      throw new Error('Geen respons van Claude');
-    }
-    
-    const text = data.content[0].text;
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Kon JSON niet uit respons halen');
-    
-    return JSON.parse(jsonMatch[0]);
-  } catch (err) {
-    console.error('Claude fout:', err);
-    throw new Error('Kon etiket niet herkennen met Claude');
+    throw new Error('Kon etiket niet herkennen');
   }
 }
 
@@ -1121,12 +1385,11 @@ async function analyzeLabel() {
   const resultText = document.getElementById('scan-result-text');
   const useBtn = document.getElementById('use-btn');
   
-  // Disable analyze button zodat je niet opnieuw kan klikken
   analyzeBtn.disabled = true;
   analyzeBtn.style.opacity = '0.5';
   
   status.style.display = 'block';
-  resultText.innerHTML = '<span class="spinner"></span> AI analyseert het etiket...';
+  resultText.innerHTML = 'AI analyseert het etiket...';
   useBtn.style.display = 'none';
   
   const base64 = scannedWineData.base64;
@@ -1136,8 +1399,7 @@ async function analyzeLabel() {
     const info = await analyzeWineLabel(base64, mediaType);
     scannedWineData = { ...scannedWineData, ...info };
     
-    resultText.innerHTML = `<strong>${info.naam || '?'}</strong><br><span style="color:var(--color-text-secondary);">${[info.druif, info.regio, info.jaar].filter(Boolean).join(' · ')}</span>`;
-    
+    resultText.innerHTML = `<strong>${info.naam || '?'}</strong><br><span style="color:#666;">${[info.druif, info.regio, info.jaar].filter(Boolean).join(' · ')}</span>`;
     useBtn.style.display = 'block';
   } catch (err) {
     resultText.innerHTML = `<span style="color: #c62828;">${err.message}</span>`;
@@ -1146,8 +1408,8 @@ async function analyzeLabel() {
   }
 }
 
-async function checkWithAI(wineId) {
-  const wine = wines.find(w => w.id === wineId);
+async function checkWithAI(noteId) {
+  const wine = wines.find(w => w.id === noteId);
   if (!wine) return;
   
   const app = document.getElementById('app');
@@ -1158,76 +1420,57 @@ async function checkWithAI(wineId) {
     resultDiv.id = 'ai-check-result';
     resultDiv.style.marginTop = '1rem';
     resultDiv.style.padding = '1.5rem';
-    resultDiv.style.background = 'var(--color-bg-secondary)';
+    resultDiv.style.background = '#f5f5f5';
     resultDiv.style.borderRadius = '4px';
     resultDiv.style.border = '2px solid #4caf50';
     app.appendChild(resultDiv);
   }
   
-  resultDiv.innerHTML = '<span class="spinner"></span> AI analyseert wijn...';
+  resultDiv.innerHTML = 'AI analyseert wijn...';
   
   try {
-    // Stap 1: AI analyseert wijn online
-    const analysisPrompt = `Je bent een WSET Level 2 sommelier en wijncriticus. Je taak:
-
-1. ANALYSEER online deze wijn (Vivino, recensies, technische fiches):
+    const analysisPrompt = `Je bent een WSET Level 2 sommelier. Analyseer deze wijn:
 ${wine.naam} ${wine.jaar} - ${wine.druif} - ${wine.regio}
 
-2. SCHRIJF je eigen korte proefnotitie (max 8 regels) in dit format:
-UITERLIJK: [kleur + intensiteit]
-NEUS: [dominante aroma's]
-SMAAK: [smaakkenmerken, body, afdronk]
-KWALITEIT: [waardering slecht/redelijk/goed/heel goed/voortreffelijk]`;
+Schrijf een korte expert proefnotitie (4-5 lijnen).`;
 
     const expertNotice = await callGemini(analysisPrompt);
-    resultDiv.innerHTML = '<span class="spinner"></span> Vergelijkt met jouw notitie...';
+    resultDiv.innerHTML = 'Vergelijkt met jouw notitie...';
     
-    // Stap 2: AI vergelijkt en geeft feedback
-    const comparisonPrompt = `Je bent een WSET Level 2 sommelier. Je hebt zojuist deze proefnotitie geschreven:
-
+    const comparisonPrompt = `Je expert proefnotitie:
 ${expertNotice}
 
----
+Student notitie:
+Uiterlijk: ${wine.kleur} | ${wine.helderheid}
+Neus: ${wine.aroma}
+Smaak: ${wine.smaak} | Body: ${wine.body}
+Kwaliteit: ${wine.kwaliteit}
 
-Nu vergelijk je met de student-notitie voor dezelfde wijn:
-
-STUDENT NOTITIE:
-Uiterlijk: ${wine.kleur || 'niet ingevuld'} | ${wine.helderheid || ''} | ${wine.intensiteit || ''}
-Neus: ${wine.aroma || 'niet ingevuld'}
-${wine.notitieGeur ? 'Geur notities: ' + wine.notitieGeur : ''}
-Smaak: ${wine.smaak || 'niet ingevuld'} | Body: ${wine.body || ''} | Afdronk: ${wine.afdronk || ''}
-${wine.notitieSmaak ? 'Smaak notities: ' + wine.notitieSmaak : ''}
-Kwaliteit: ${wine.kwaliteit || 'niet ingevuld'}
-
----
-
-GEEF OUTPUT in EXACT dit format (niets anders):
+Geef EXACT in dit format:
 
 **EXPERT ANALYSE**
-[Jouw korte 2-3 zin samenvatting van wat deze wijn bijzonder maakt]
+[2-3 zinnen wat deze wijn bijzonder maakt]
 
 **SCORE: X/10**
-[1 zin waarom deze score]
+[1 zin waarom]
 
-**FEEDBACK (3 punten)**
-✓ Dit ging goed: [1 ding dat de student goed deed]
-△ Dit kon beter: [1 ding om te verbeteren]
-→ Tip: [1 concrete tip]
-
-Zorg dat alles KORT, DUIDELIJK en CONSTRUCTIEF is. Geen lange teksten.`;
+**FEEDBACK**
+✓ Goed: [1 ding]
+△ Beter: [1 ding]
+→ Tip: [1 tip]`;
 
     const feedback = await callGemini(comparisonPrompt);
     const scoreMatch = feedback.match(/SCORE:\s*(\d+)/);
     const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+    
     if (score > 0) {
       wine.aiScore = score;
       wine.aiScoreDate = new Date().toLocaleDateString('nl-NL');
       await saveWines();
-  
-      // Update profiel met score
+      
       const profile = getCurrentProfile();
       if (profile) {
-        const profileWine = profile.wines.find(w => w.wineId === wine.id);
+        const profileWine = profile.wines.find(w => w.noteId === wine.id);
         if (profileWine) {
           profileWine.aiScore = score;
           profileWine.aiScoreDate = new Date().toLocaleDateString('nl-NL');
@@ -1236,27 +1479,22 @@ Zorg dat alles KORT, DUIDELIJK en CONSTRUCTIEF is. Geen lange teksten.`;
       }
     }
     
-    // isplay
     resultDiv.innerHTML = `
-      <div style="color: #4caf50; font-weight: bold; margin-bottom: 1rem; font-size: 14px;">✓ AI FEEDBACK</div>
+      <div style="color: #4caf50; font-weight: bold; margin-bottom: 1rem;">✓ AI FEEDBACK</div>
       ${feedback.split('\n').map(line => {
         if (line.includes('**')) {
-          return `<div style="font-weight: 500; margin-top: 0.75rem; margin-bottom: 0.5rem; font-size: 13px;">${line.replace(/\*\*/g, '')}</div>`;
+          return `<div style="font-weight: 500; margin-top: 0.75rem; font-size: 13px;">${line.replace(/\*\*/g, '')}</div>`;
         }
         if (line.trim() === '') return '';
-        return `<div style="font-size: 13px; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: 0.5rem;">${line}</div>`;
+        return `<div style="font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 0.5rem;">${line}</div>`;
       }).join('')}
     `;
-    
   } catch (err) {
     resultDiv.innerHTML = `<span style="color: #c62828;">❌ Fout: ${err.message}</span>`;
   }
 }
 
 async function callGemini(prompt) {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) throw new Error('Gemini API key niet ingesteld');
-  
   const response = await ai.models.generateContent({
     model: "gemini-3.5-flash",
     contents: [{
@@ -1268,22 +1506,34 @@ async function callGemini(prompt) {
   return response.text;
 }
 
-
 // ============= INIT =============
+
 async function init() {
   await initDB();
   await loadWines();
-  await initProfiles();
-  render();
+  await initLogin();
+  
+  if (!isLoggedIn) {
+    showLoginScreen();
+  } else {
+    await initProfiles();
+    render();
+  }
 }
 
-// Wacht tot DOM geladen is, dan init
 document.addEventListener('DOMContentLoaded', init);
 
-// Zet functies globaal zodat HTML ze kan aanroepen
+// Global window functions
+window.handleLogin = handleLogin;
+window.selectProfile = selectProfile;
+window.createNewProfileFromLogin = createNewProfileFromLogin;
 window.switchScreen = switchScreen;
 window.saveWine = saveWine;
-window.showDetail = showDetail;
+window.switchProfile = switchProfile;
+window.viewProfileWines = viewProfileWines;
+window.promptNewProfile = promptNewProfile;
+window.deleteProfile = deleteProfile;
+window.selectProfileAndNew = selectProfileAndNew;
 window.deleteWine = deleteWine;
 window.toggleChip = toggleChip;
 window.handleImageUpload = handleImageUpload;
@@ -1293,10 +1543,9 @@ window.render = render;
 window.setFilter = setFilter;
 window.filterAndSearch = filterAndSearch;
 window.checkWithAI = checkWithAI;
-window.switchProfile = switchProfile;
-window.viewProfileWines = viewProfileWines;
-window.promptNewProfile = promptNewProfile;
-window.deleteProfile = deleteProfile;
-window.selectProfileAndNew = selectProfileAndNew;
 window.showWineReviews = showWineReviews;
 window.showReviewTab = showReviewTab;
+window.showWineGroupDetail = showWineGroupDetail;
+window.showNoteDetail = showNoteDetail;
+window.addNoteToWine = addNoteToWine;
+window.editWine = editWine;
