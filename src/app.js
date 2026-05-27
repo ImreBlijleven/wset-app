@@ -29,39 +29,39 @@ function getCurrentUserId() {
 function showLoginScreen() {
   const app = document.getElementById('app')
   app.innerHTML = `
-    <div style="display: flex; min-height: 100vh; background: linear-gradient(90deg, #FFE6E6 0%, #FFE6E6 50%, #FF9999 50%, #FF9999 100%); margin: 0; padding: 0;">
-      
+    <div class="login-layout">
+
       <!-- Links: Form -->
-      <div style="width: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 60px; position: relative;">
+      <div class="login-form-col">
         <div style="text-align: center; width: 100%;">
-          <h1 style="margin: 0 0 0 0; font-size: 120px; font-weight: bold; color: var(--color-accent-yellow); text-shadow: 6px 6px 0px #8B4513; letter-spacing: 8px;">WSET</h1>
-          <div style="font-family: var(--font-family-heading); font-size: 36px; font-weight: bold; color: var(--color-accent-yellow); text-shadow: 4px 4px 0px #8B4513; letter-spacing: 4px; margin-bottom: 60px;">PROEFMETHODE</div>
-          
-          <input type="text" id="login-username" placeholder="Username" style="width: 100%; padding: 18px 20px; margin-bottom: 16px; border: 3px solid #D67A7A; border-radius: 8px; background: rgba(255, 153, 153, 0.6); color: white; font-size: 18px; font-family: var(--font-family-main); font-weight: 500;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
-          
-          <input type="password" id="login-password" placeholder="Wachtwoord" style="width: 100%; padding: 18px 20px; margin-bottom: 12px; border: 3px solid #D67A7A; border-radius: 8px; background: rgba(255, 153, 153, 0.6); color: white; font-size: 18px; font-family: var(--font-family-main); font-weight: 500;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
-          
+          <h1 class="login-title">WSET</h1>
+          <div class="login-subtitle">PROEFMETHODE</div>
+
+          <input type="text" id="login-username" placeholder="Username" class="login-input" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+
+          <input type="password" id="login-password" placeholder="Wachtwoord" class="login-input" style="margin-bottom: 12px;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+
           <style>
             #login-username::placeholder, #login-password::placeholder {
               color: white !important;
               opacity: 0.9;
             }
           </style>
-          
+
           <div style="text-align: right; margin-bottom: 40px; font-size: 16px;">
             <a onclick="alert('Coming soon')" style="color: var(--color-primary-pink); cursor: pointer; text-decoration: none; font-weight: 600;">Wachtwoord vergeten?</a>
           </div>
-          
+
           <button onclick="handleLogin()" style="width: 100%; padding: 20px; background: white; color: var(--color-primary-pink); border: 3px solid var(--color-primary-pink); border-radius: 8px; font-size: 20px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;">Login</button>
-          
+
           <div style="text-align: center; margin-top: 24px; font-size: 16px; color: var(--color-text-dark);">
             Of <a onclick="showSignupScreen()" style="color: var(--color-primary-pink); cursor: pointer; text-decoration: none; font-weight: 600;">maak hier een account aan</a>
           </div>
         </div>
       </div>
-      
+
       <!-- Rechts: Wine Glasses Logo -->
-      <div style="width: 50%; display: flex; justify-content: center; align-items: center; padding: 60px;">
+      <div class="login-logo-col">
         <svg viewBox="0 0 300 350" xmlns="http://www.w3.org/2000/svg" style="width: 100%; max-width: 350px; height: auto;">
           <!-- Champagne Flute: taper from wide top to narrow bottom -->
           <g>
@@ -106,19 +106,19 @@ function showLoginScreen() {
 function showSignupScreen() {
   const app = document.getElementById('app')
   app.innerHTML = `
-    <div style="display: flex; min-height: 100vh; background: linear-gradient(90deg, #FFE6E6 0%, #FFE6E6 50%, #FF9999 50%, #FF9999 100%); margin: 0; padding: 0;">
-      
+    <div class="login-layout">
+
       <!-- Links: Form -->
-      <div style="width: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 60px; position: relative;">
+      <div class="login-form-col">
         <div style="text-align: center; width: 100%;">
-          <h1 style="margin: 0 0 0 0; font-size: 120px; font-weight: bold; color: var(--color-accent-yellow); text-shadow: 6px 6px 0px #8B4513; letter-spacing: 8px;">WSET</h1>
-          <div style="font-family: var(--font-family-heading); font-size: 36px; font-weight: bold; color: var(--color-accent-yellow); text-shadow: 4px 4px 0px #8B4513; letter-spacing: 4px; margin-bottom: 60px;">PROEFMETHODE</div>
-          
-          <input type="text" id="signup-username" placeholder="Kies je username" style="width: 100%; padding: 18px 20px; margin-bottom: 16px; border: 3px solid #D67A7A; border-radius: 8px; background: rgba(255, 153, 153, 0.6); color: white; font-size: 18px; font-family: var(--font-family-main); font-weight: 500;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+          <h1 class="login-title">WSET</h1>
+          <div class="login-subtitle">PROEFMETHODE</div>
 
-          <input type="password" id="signup-password" placeholder="Kies een wachtwoord" style="width: 100%; padding: 18px 20px; margin-bottom: 16px; border: 3px solid #D67A7A; border-radius: 8px; background: rgba(255, 153, 153, 0.6); color: white; font-size: 18px; font-family: var(--font-family-main); font-weight: 500;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+          <input type="text" id="signup-username" placeholder="Kies je username" class="login-input" onfocus="this.style.color='white'" onblur="this.style.color='white'">
 
-          <input type="password" id="signup-password-confirm" placeholder="Bevestig wachtwoord" style="width: 100%; padding: 18px 20px; margin-bottom: 40px; border: 3px solid #D67A7A; border-radius: 8px; background: rgba(255, 153, 153, 0.6); color: white; font-size: 18px; font-family: var(--font-family-main); font-weight: 500;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+          <input type="password" id="signup-password" placeholder="Kies een wachtwoord" class="login-input" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+
+          <input type="password" id="signup-password-confirm" placeholder="Bevestig wachtwoord" class="login-input" style="margin-bottom: 40px;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
 
           <style>
             #signup-username::placeholder, #signup-password::placeholder, #signup-password-confirm::placeholder {
@@ -128,15 +128,15 @@ function showSignupScreen() {
           </style>
 
           <button onclick="handleSignup()" style="width: 100%; padding: 20px; background: white; color: var(--color-primary-pink); border: 3px solid var(--color-primary-pink); border-radius: 8px; font-size: 20px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;">Account maken</button>
-          
+
           <div style="text-align: center; margin-top: 24px; font-size: 16px; color: var(--color-text-dark);">
             <a onclick="showLoginScreen()" style="color: var(--color-primary-pink); cursor: pointer; text-decoration: none; font-weight: 600;">Terug naar login</a>
           </div>
         </div>
       </div>
-      
+
       <!-- Rechts: Wine Glasses Logo -->
-      <div style="width: 50%; display: flex; justify-content: center; align-items: center; padding: 60px;">
+      <div class="login-logo-col">
         <svg viewBox="0 0 300 350" xmlns="http://www.w3.org/2000/svg" style="width: 100%; max-width: 350px; height: auto;">
           <!-- Champagne Flute: taper from wide top to narrow bottom -->
           <g>
@@ -335,8 +335,6 @@ function renderList(container) {
         <div id="filters" class="filter-chips-wrap"></div>
 
         <div class="wine-list" id="wine-list"></div>
-
-        <div class="logout-link" onclick="handleLogout()">Uitloggen</div>
       </div>
 
       <nav class="bottom-nav">
@@ -439,6 +437,12 @@ async function showMyWines() {
         <!-- Wijnlijst -->
         <div class="section-title" style="margin-top: 24px; margin-bottom: 12px;">Mijn wijnen</div>
         <div class="wine-list" id="my-wines"></div>
+
+        <!-- Uitloggen -->
+        <button class="profile-logout-btn" onclick="handleLogout()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Uitloggen
+        </button>
       </div>
     </div>
   `
