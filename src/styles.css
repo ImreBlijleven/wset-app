@@ -975,3 +975,87 @@ table td:last-child {
 .logout-link:hover {
   color: rgba(255, 255, 255, 0.85);
 }
+/* ============= PROFILE PAGE ============= */
+.profile-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 0 28px;
+}
+
+.profile-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--color-primary-pink);
+  color: white;
+  font-size: 36px;
+  font-weight: var(--font-weight-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.profile-username {
+  font-size: 24px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-dark);
+}
+
+.profile-since {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
+}
+
+.profile-change-pw-btn {
+  margin-top: 8px;
+  background: transparent;
+  border: 2px solid var(--color-primary-pink);
+  color: var(--color-primary-pink);
+  border-radius: var(--radius-full);
+  padding: 8px 20px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-family-main);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.profile-change-pw-btn:hover {
+  background: var(--color-primary-pink);
+  color: white;
+}
+
+.profile-stats-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.profile-stat-box {
+  flex: 1;
+  background: white;
+  border-radius: 14px;
+  padding: 16px 8px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.profile-stat-value {
+  font-size: 28px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-accent-yellow);
+  text-shadow: 2px 2px 0px #8B4513;
+  line-height: 1.1;
+}
+
+.profile-stat-label {
+  font-size: 11px;
+  color: var(--color-text-light);
+  margin-top: 4px;
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

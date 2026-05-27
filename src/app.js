@@ -12,6 +12,14 @@ let editingWineId = null
 let isLoggedIn = false
 let currentUserId = null
 
+// ============= AUTH HELPERS =============
+
+async function hashPassword(password) {
+  const data = new TextEncoder().encode(password)
+  const hash = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 // ============= LOGIN SCREEN =============
 
 function getCurrentUserId() {
@@ -106,15 +114,19 @@ function showSignupScreen() {
           <h1 style="margin: 0 0 0 0; font-size: 120px; font-weight: bold; color: var(--color-accent-yellow); text-shadow: 6px 6px 0px #8B4513; letter-spacing: 8px;">WSET</h1>
           <div style="font-family: var(--font-family-heading); font-size: 36px; font-weight: bold; color: var(--color-accent-yellow); text-shadow: 4px 4px 0px #8B4513; letter-spacing: 4px; margin-bottom: 60px;">PROEFMETHODE</div>
           
-          <input type="text" id="signup-username" placeholder="Kies je username" style="width: 100%; padding: 18px 20px; margin-bottom: 40px; border: 3px solid #D67A7A; border-radius: 8px; background: rgba(255, 153, 153, 0.6); color: white; font-size: 18px; font-family: var(--font-family-main); font-weight: 500;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
-          
+          <input type="text" id="signup-username" placeholder="Kies je username" style="width: 100%; padding: 18px 20px; margin-bottom: 16px; border: 3px solid #D67A7A; border-radius: 8px; background: rgba(255, 153, 153, 0.6); color: white; font-size: 18px; font-family: var(--font-family-main); font-weight: 500;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+
+          <input type="password" id="signup-password" placeholder="Kies een wachtwoord" style="width: 100%; padding: 18px 20px; margin-bottom: 16px; border: 3px solid #D67A7A; border-radius: 8px; background: rgba(255, 153, 153, 0.6); color: white; font-size: 18px; font-family: var(--font-family-main); font-weight: 500;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+
+          <input type="password" id="signup-password-confirm" placeholder="Bevestig wachtwoord" style="width: 100%; padding: 18px 20px; margin-bottom: 40px; border: 3px solid #D67A7A; border-radius: 8px; background: rgba(255, 153, 153, 0.6); color: white; font-size: 18px; font-family: var(--font-family-main); font-weight: 500;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+
           <style>
-            #signup-username::placeholder {
+            #signup-username::placeholder, #signup-password::placeholder, #signup-password-confirm::placeholder {
               color: white !important;
               opacity: 0.9;
             }
           </style>
-          
+
           <button onclick="handleSignup()" style="width: 100%; padding: 20px; background: white; color: var(--color-primary-pink); border: 3px solid var(--color-primary-pink); border-radius: 8px; font-size: 20px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;">Account maken</button>
           
           <div style="text-align: center; margin-top: 24px; font-size: 16px; color: var(--color-text-dark);">
@@ -168,66 +180,98 @@ function showSignupScreen() {
 
 async function handleLogin() {
   const username = document.getElementById('login-username').value.trim()
-  const password = document.getElementById('login-password').value.toLowerCase()
-  
+  const password = document.getElementById('login-password').value
+
   if (!username) {
     alert('Vul username in')
     return
   }
-  
-  if (password !== 'girlie') {
-    const input = document.getElementById('login-password')
-    input.style.borderColor = '#c62828'
-    input.value = ''
-    input.placeholder = 'Wrong password'
-    setTimeout(() => {
-      input.style.borderColor = 'var(--color-border)'
-      input.placeholder = 'girlie'
-    }, 2000)
+
+  if (!password) {
+    alert('Vul je wachtwoord in')
     return
   }
-  
-  // Check username
+
+  const passwordHash = await hashPassword(password)
+
   const { data: user, error } = await supabase
     .from('users')
-    .select('id')
+    .select('id, password_hash')
     .eq('username', username)
     .single()
-  
+
   if (error || !user) {
     alert('Username niet gevonden')
     return
   }
-  
+
+  if (user.password_hash !== passwordHash) {
+    const input = document.getElementById('login-password')
+    input.style.borderColor = '#c62828'
+    input.value = ''
+    input.placeholder = 'Verkeerd wachtwoord'
+    setTimeout(() => {
+      input.style.borderColor = '#D67A7A'
+      input.placeholder = 'Wachtwoord'
+    }, 2000)
+    return
+  }
+
   // Success!
   currentUserId = user.id
   isLoggedIn = true
+  localStorage.setItem('wset_user_id', user.id)
   render()
 }
 
 async function handleSignup() {
   const username = document.getElementById('signup-username').value.trim()
-  
+  const password = document.getElementById('signup-password').value
+  const passwordConfirm = document.getElementById('signup-password-confirm').value
+
   if (!username) {
-    alert('Vul username in')
+    alert('Vul een username in')
     return
   }
-  
+
+  if (!password) {
+    alert('Kies een wachtwoord')
+    return
+  }
+
+  if (password !== passwordConfirm) {
+    const confirmInput = document.getElementById('signup-password-confirm')
+    confirmInput.style.borderColor = '#c62828'
+    confirmInput.value = ''
+    confirmInput.placeholder = 'Wachtwoorden komen niet overeen'
+    setTimeout(() => {
+      confirmInput.style.borderColor = '#D67A7A'
+      confirmInput.placeholder = 'Bevestig wachtwoord'
+    }, 2000)
+    return
+  }
+
+  const passwordHash = await hashPassword(password)
+
   const { data, error } = await supabase
     .from('users')
     .insert([{
       username,
       email: username + '@local',
-      password_hash: 'placeholder'
+      password_hash: passwordHash
     }])
     .select()
-  
+
   if (error) {
-    alert('Fout: ' + error.message)
+    if (error.code === '23505') {
+      alert('Deze username is al bezet, kies een andere.')
+    } else {
+      alert('Fout: ' + error.message)
+    }
     return
   }
-  
-  alert('Account gemaakt! Log in.')
+
+  alert('Account gemaakt! Je kunt nu inloggen.')
   showLoginScreen()
 }
 
@@ -341,8 +385,24 @@ function renderFiltersAndList() {
   filterAndSearch()
 }
 
-function showMyWines() {
-  const myWines = wines.filter(w => w.user_id === currentUserId)
+async function showMyWines() {
+  const myNotes = wines.filter(w => w.user_id === currentUserId)
+  const scores = myNotes.filter(w => w.ai_score).map(w => w.ai_score)
+  const avgScore = scores.length > 0
+    ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)
+    : null
+
+  const { data: userData } = await supabase
+    .from('users')
+    .select('username, created_at')
+    .eq('id', currentUserId)
+    .single()
+
+  const username = userData?.username || 'Onbekend'
+  const lidSinds = userData?.created_at
+    ? new Date(userData.created_at).toLocaleDateString('nl-NL', { year: 'numeric', month: 'long' })
+    : 'Onbekend'
+  const initial = username.charAt(0).toUpperCase()
 
   const app = document.getElementById('app')
   app.innerHTML = `
@@ -350,18 +410,44 @@ function showMyWines() {
       <div class="app-card">
         <button class="back-link" onclick="switchScreen('lijst')">← Terug naar overzicht</button>
 
-        <h1 class="page-hero-title">Mijn wijnen</h1>
+        <h1 class="page-hero-title">Mijn Profiel</h1>
 
+        <!-- Profielkaart -->
+        <div class="profile-header">
+          <div class="profile-avatar">${initial}</div>
+          <div class="profile-username">${username}</div>
+          <div class="profile-since">Lid sinds ${lidSinds}</div>
+          <button class="profile-change-pw-btn" onclick="showChangePassword()">Wachtwoord wijzigen</button>
+        </div>
+
+        <!-- Stats -->
+        <div class="profile-stats-row">
+          <div class="profile-stat-box">
+            <div class="profile-stat-value">${myNotes.length}</div>
+            <div class="profile-stat-label">Proefnotities</div>
+          </div>
+          <div class="profile-stat-box">
+            <div class="profile-stat-value">${avgScore ?? '–'}</div>
+            <div class="profile-stat-label">Gem. score</div>
+          </div>
+          <div class="profile-stat-box">
+            <div class="profile-stat-value">${scores.length}</div>
+            <div class="profile-stat-label">Beoordeeld</div>
+          </div>
+        </div>
+
+        <!-- Wijnlijst -->
+        <div class="section-title" style="margin-top: 24px; margin-bottom: 12px;">Mijn wijnen</div>
         <div class="wine-list" id="my-wines"></div>
       </div>
     </div>
   `
 
   const list = document.getElementById('my-wines')
-  if (myWines.length === 0) {
+  if (myNotes.length === 0) {
     list.innerHTML = '<div class="empty-state">Je hebt nog geen wijnen geproefd</div>'
   } else {
-    list.innerHTML = myWines.map(w => `
+    list.innerHTML = myNotes.map(w => `
       <div class="wine-card" onclick="showWineGroupDetail('${w.wine_id}')">
         <div class="flex-between">
           <div>
@@ -369,11 +455,87 @@ function showMyWines() {
             <div class="wine-card-meta">${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}</div>
             ${w.created_at ? `<div class="wine-card-meta">${new Date(w.created_at).toLocaleDateString('nl-NL')}</div>` : ''}
           </div>
-          <div class="wine-chevron">›</div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+            ${w.ai_score ? `<div style="font-size:20px; font-weight:bold; color:var(--color-accent-yellow);">${w.ai_score}</div>` : ''}
+            <div class="wine-chevron">›</div>
+          </div>
         </div>
       </div>
     `).join('')
   }
+}
+
+function showChangePassword() {
+  const app = document.getElementById('app')
+  app.innerHTML = `
+    <div class="app-outer">
+      <div class="app-card">
+        <button class="back-link" onclick="showMyWines()">← Terug naar profiel</button>
+
+        <h1 class="page-hero-title">Wachtwoord</h1>
+
+        <div style="display:flex; flex-direction:column; gap:16px; margin-top:8px;">
+          <input type="password" id="pw-current" placeholder="Huidig wachtwoord"
+            class="form-input" style="width:100%; box-sizing:border-box;">
+          <input type="password" id="pw-new" placeholder="Nieuw wachtwoord"
+            class="form-input" style="width:100%; box-sizing:border-box;">
+          <input type="password" id="pw-confirm" placeholder="Bevestig nieuw wachtwoord"
+            class="form-input" style="width:100%; box-sizing:border-box;">
+          <button class="button" onclick="handleChangePasswordSubmit()" style="width:100%; margin-top:8px;">Opslaan</button>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+async function handleChangePasswordSubmit() {
+  const current = document.getElementById('pw-current').value
+  const newPw = document.getElementById('pw-new').value
+  const confirmPw = document.getElementById('pw-confirm').value
+
+  if (!current || !newPw || !confirmPw) {
+    alert('Vul alle velden in')
+    return
+  }
+
+  if (newPw !== confirmPw) {
+    const el = document.getElementById('pw-confirm')
+    el.style.borderColor = '#c62828'
+    el.value = ''
+    el.placeholder = 'Wachtwoorden komen niet overeen'
+    setTimeout(() => { el.style.borderColor = ''; el.placeholder = 'Bevestig nieuw wachtwoord' }, 2000)
+    return
+  }
+
+  const currentHash = await hashPassword(current)
+  const { data: userData } = await supabase
+    .from('users')
+    .select('password_hash')
+    .eq('id', currentUserId)
+    .single()
+
+  if (!userData || userData.password_hash !== currentHash) {
+    const el = document.getElementById('pw-current')
+    el.style.borderColor = '#c62828'
+    el.value = ''
+    el.placeholder = 'Huidig wachtwoord klopt niet'
+    setTimeout(() => { el.style.borderColor = ''; el.placeholder = 'Huidig wachtwoord' }, 2000)
+    return
+  }
+
+  const newHash = await hashPassword(newPw)
+  const { error } = await supabase
+    .from('users')
+    .update({ password_hash: newHash })
+    .eq('id', currentUserId)
+
+  if (error) {
+    alert('Fout bij opslaan: ' + error.message)
+    return
+  }
+
+  alert('Wachtwoord gewijzigd!')
+  showMyWines()
 }
 
 function showLeaderboard() {
@@ -1306,6 +1468,7 @@ Kwaliteit: ${wine.kwaliteit}
 function handleLogout() {
   isLoggedIn = false
   currentUserId = null
+  localStorage.removeItem('wset_user_id')
   wines = []
   currentFilter = null
   currentSearch = ''
@@ -1315,8 +1478,14 @@ function handleLogout() {
 // ============= INIT =============
 
 async function init() {
+  const savedUserId = localStorage.getItem('wset_user_id')
+  if (savedUserId) {
+    currentUserId = savedUserId
+    isLoggedIn = true
+  }
+
   await loadWines()
-  
+
   if (!isLoggedIn) {
     showLoginScreen()
   } else {
@@ -1346,5 +1515,7 @@ window.editWine = editWine
 window.showSignupScreen = showSignupScreen
 window.handleSignup = handleSignup
 window.showMyWines = showMyWines
+window.showChangePassword = showChangePassword
+window.handleChangePasswordSubmit = handleChangePasswordSubmit
 window.showLeaderboard = showLeaderboard
 window.handleLogout = handleLogout
