@@ -1,340 +1,198 @@
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({
-  apiKey: import.meta.env.VITE_GEMINI_API_KEY
-});
+import { supabase } from './supabase.js'
 
 // App state
-let wines = [];
-let currentScreen = 'lijst';
-let chipState = {};
-let scannedWineData = null;
-let currentFilter = null;
-let currentSearch = '';
-let db;
-let profiles = [];
-let currentProfile = null;
-let editingWineId = null;
-let isLoggedIn = false;
+let wines = []
+let currentScreen = 'lijst'
+let chipState = {}
+let scannedWineData = null
+let currentFilter = null
+let currentSearch = ''
+let db
+let editingWineId = null
+let isLoggedIn = false
+let currentUserId = null
 
 // ============= LOGIN SCREEN =============
 
-async function initLogin() {
-  if (!db) await initDB();
-  
-  return new Promise((resolve) => {
-    const tx = db.transaction('profiles', 'readonly');
-    const store = tx.objectStore('profiles');
-    const req = store.getAll();
-    
-    req.onsuccess = () => {
-      profiles = req.result;
-      if (profiles.length > 0) {
-        currentProfile = profiles[0].id;
-        isLoggedIn = true;
-      }
-      resolve();
-    };
-    req.onerror = () => resolve();
-  });
+function getCurrentUserId() {
+  return currentUserId
 }
 
 function showLoginScreen() {
-  const app = document.getElementById('app');
+  const app = document.getElementById('app')
   app.innerHTML = `
     <div class="app" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh;">
-      <div style="display: flex; gap: 12px; align-items: center;">
-        <h1 style="font-size: 32px; margin: 0;">Hi</h1>
-        <input 
-          type="text" 
-          id="login-password" 
-          style="padding: 12px 16px; border: 0.5px solid var(--color-border); border-radius: 4px; font-size: 16px; width: 200px;"
-          onkeypress="if(event.key==='Enter') handleLogin()"
-        />
-        <h1 style="font-size: 32px; margin: 0;">👋</h1>
-      </div>
-    </div>
-  `;
-  
-  setTimeout(() => {
-    document.getElementById('login-password').focus();
-  }, 100);
-}
-
-function handleLogin() {
-  const password = document.getElementById('login-password').value.toLowerCase();
-  
-  if (password === 'girlie') {
-    if (profiles.length === 0) {
-      createProfile('Mijn profiel').then(() => {
-        isLoggedIn = true;
-        render();
-      });
-    } else if (profiles.length === 1) {
-      currentProfile = profiles[0].id;
-      isLoggedIn = true;
-      render();
-    } else {
-      showProfileSelector();
-    }
-  } else {
-    const input = document.getElementById('login-password');
-    input.style.borderColor = '#c62828';
-    input.value = '';
-    input.placeholder = 'Wrong password';
-    setTimeout(() => {
-      input.style.borderColor = 'var(--color-border)';
-      input.placeholder = 'Password...';
-    }, 2000);
-  }
-}
-
-function showProfileSelector() {
-  const app = document.getElementById('app');
-  app.innerHTML = `
-    <div class="app" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; gap: 2rem;">
-      <div style="text-align: center;">
-        <h1 style="font-size: 24px; margin-bottom: 2rem;">Who are you?</h1>
-      </div>
-      
-      <div style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 10px;">
-        ${profiles.map(p => `
-          <button 
-            class="wine-card" 
-            onclick="selectProfile(${p.id})"
-            style="padding: 16px; text-align: left; cursor: pointer;">
-            <div style="font-weight: 500; font-size: 16px;">${p.name}</div>
-            <div style="font-size: 12px; color: #666; margin-top: 4px;">Created: ${p.createdAt}</div>
-          </button>
-        `).join('')}
+      <div style="width: 100%; max-width: 300px;">
+        <h1 style="text-align: center; margin-bottom: 2rem;">WSET App</h1>
         
-        <button 
-          class="button"
-          onclick="createNewProfileFromLogin()"
-          style="width: 100%; margin-top: 1rem; background: #e8f5e9; color: #2e7d32;">
-          + Create new profile
-        </button>
+        <div class="card">
+          <div class="field">
+            <label>Username</label>
+            <input type="text" id="login-username" placeholder="bijv. imre" style="width: 100%;">
+          </div>
+          
+          <div class="field">
+            <label>Wachtwoord</label>
+            <input type="password" id="login-password" placeholder="girlie" style="width: 100%;">
+          </div>
+          
+          <button class="button" onclick="handleLogin()" style="width: 100%; margin-bottom: 0.5rem;">Login</button>
+          <button class="button" onclick="showSignupScreen()" style="width: 100%; background: #e8f5e9; color: #2e7d32;">Nieuw account</button>
+        </div>
       </div>
     </div>
-  `;
+  `
+  
+  document.getElementById('login-username').focus()
 }
 
-function selectProfile(profileId) {
-  currentProfile = profileId;
-  isLoggedIn = true;
-  render();
-}
-
-function createNewProfileFromLogin() {
-  const name = prompt('Profile name:');
-  if (name && name.trim()) {
-    createProfile(name.trim()).then(() => {
-      showProfileSelector();
-    });
+async function handleLogin() {
+  const username = document.getElementById('login-username').value.trim()
+  const password = document.getElementById('login-password').value.toLowerCase()
+  
+  if (!username) {
+    alert('Vul username in')
+    return
   }
+  
+  if (password !== 'girlie') {
+    const input = document.getElementById('login-password')
+    input.style.borderColor = '#c62828'
+    input.value = ''
+    input.placeholder = 'Wrong password'
+    setTimeout(() => {
+      input.style.borderColor = 'var(--color-border)'
+      input.placeholder = 'girlie'
+    }, 2000)
+    return
+  }
+  
+  // Check username
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('id')
+    .eq('username', username)
+    .single()
+  
+  if (error || !user) {
+    alert('Username niet gevonden')
+    return
+  }
+  
+  // Success!
+  currentUserId = user.id
+  isLoggedIn = true
+  render()
 }
 
-// ============= OPSLAG =============
-
-async function initDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('WsetApp', 2);
-    
-    req.onupgradeneeded = (e) => {
-      const database = e.target.result;
-      
-      if (!database.objectStoreNames.contains('wines')) {
-        database.createObjectStore('wines', { keyPath: 'id' });
-      }
-      
-      if (!database.objectStoreNames.contains('profiles')) {
-        database.createObjectStore('profiles', { keyPath: 'id' });
-      }
-    };
-    
-    req.onsuccess = () => { 
-      db = req.result;
-      resolve(); 
-    };
-    req.onerror = () => reject(req.error);
-  });
+function showSignupScreen() {
+  const app = document.getElementById('app')
+  app.innerHTML = `
+    <div class="app" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh;">
+      <div style="width: 100%; max-width: 300px;">
+        <h1 style="text-align: center; margin-bottom: 2rem;">Nieuw Account</h1>
+        
+        <div class="card">
+          <div class="field">
+            <label>Username</label>
+            <input type="text" id="signup-username" placeholder="kies je username" style="width: 100%;">
+          </div>
+          
+          <button class="button" onclick="handleSignup()" style="width: 100%; margin-bottom: 0.5rem;">Account maken</button>
+          <button class="button" onclick="showLoginScreen()" style="width: 100%; background: #f5f5f5;">Terug</button>
+        </div>
+      </div>
+    </div>
+  `
+  
+  document.getElementById('signup-username').focus()
 }
+
+async function handleSignup() {
+  const username = document.getElementById('signup-username').value.trim()
+  
+  if (!username) {
+    alert('Vul username in')
+    return
+  }
+  
+  const { data, error } = await supabase
+    .from('users')
+    .insert([{
+      username,
+      email: username + '@local',
+      password_hash: 'placeholder'
+    }])
+    .select()
+  
+  if (error) {
+    alert('Fout: ' + error.message)
+    return
+  }
+  
+  alert('Account gemaakt! Log in.')
+  showLoginScreen()
+}
+
+// ============= DATABASE =============
 
 async function loadWines() {
-  if (!db) await initDB();
+  const { data, error } = await supabase
+    .from('wines')
+    .select('*')
   
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('wines', 'readonly');
-    const store = tx.objectStore('wines');
-    const req = store.getAll();
-    req.onsuccess = () => {
-      wines = req.result.reverse();
-      resolve();
-    };
-    req.onerror = () => reject(req.error);
-  });
+  if (error) {
+    console.error('Supabase error:', error)
+    wines = []
+  } else {
+    wines = data || []
+  }
 }
 
-async function saveWines() {
-  if (!db) await initDB();
-  
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('wines', 'readwrite');
-    const store = tx.objectStore('wines');
-    
-    wines.forEach(wine => {
-      store.put(wine);
-    });
-    
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-// ============= PROFIEL SYSTEM =============
-
-async function initProfiles() {
-  if (!db) await initDB();
-  
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('profiles', 'readonly');
-    const store = tx.objectStore('profiles');
-    const req = store.getAll();
-    
-    req.onsuccess = () => {
-      profiles = req.result;
-      if (profiles.length === 0) {
-        createProfile('Mijn profiel').then(resolve);
-      } else {
-        currentProfile = profiles[0].id;
-        resolve();
-      }
-    };
-    req.onerror = () => {
-      console.error('Fout bij laden profielen');
-      createProfile('Mijn profiel').then(resolve);
-    };
-  });
-}
-
-async function createProfile(name) {
-  if (!db) await initDB();
-  
-  const profile = {
-    id: Date.now(),
-    name: name,
-    createdAt: new Date().toLocaleDateString('nl-NL'),
-    wines: []
-  };
-  
-  profiles.unshift(profile);
-  currentProfile = profile.id;
-  await saveProfiles();
-}
-
-async function saveProfiles() {
-  if (!db) await initDB();
-  
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('profiles', 'readwrite');
-    const store = tx.objectStore('profiles');
-    
-    store.clear();
-    
-    profiles.forEach(profile => {
-      store.add(profile);
-    });
-    
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-function getCurrentProfile() {
-  return profiles.find(p => p.id === currentProfile);
-}
-
-// ============= WINE ID & DEDUP =============
+// ============= WINE HELPERS =============
 
 function generateWineId(naam, druif, jaar, regio) {
-  return `${naam.toLowerCase()}-${druif.toLowerCase()}-${jaar}-${regio.toLowerCase()}`;
+  return `${naam.toLowerCase()}-${druif.toLowerCase()}-${jaar}-${regio.toLowerCase()}`
 }
 
 function findExistingWine(naam, druif, jaar, regio) {
-  const wineId = generateWineId(naam, druif, jaar, regio);
-  return wines.find(w => w.wineId === wineId);
+  const wineId = generateWineId(naam, druif, jaar, regio)
+  return wines.find(w => w.wine_id === wineId)
 }
 
 function getWineNotes(wineId) {
-  return wines.filter(w => w.wineId === wineId);
+  return wines.filter(w => w.wine_id === wineId)
 }
 
-function addWineToProfile(wine) {
-  const profile = getCurrentProfile();
-  if (profile) {
-    if (!profile.wines.find(w => w.noteId === wine.id)) {
-      profile.wines.push({
-        noteId: wine.id,
-        wineId: wine.wineId,
-        addedDate: new Date().toLocaleDateString('nl-NL'),
-        aiScore: wine.aiScore || null,
-        aiScoreDate: wine.aiScoreDate || null
-      });
-      saveProfiles();
-    }
-  }
-}
-
-function getProfileStats(profileId) {
-  const profile = profiles.find(p => p.id === profileId);
-  if (!profile || profile.wines.length === 0) return null;
-  
-  const scoresWithAI = profile.wines.filter(w => w.aiScore);
-  
-  if (scoresWithAI.length === 0) return null;
-  
-  const avgScore = (scoresWithAI.reduce((sum, w) => sum + w.aiScore, 0) / scoresWithAI.length).toFixed(1);
-  
-  return {
-    totalWines: profile.wines.length,
-    scoredWines: scoresWithAI.length,
-    averageScore: avgScore
-  };
-}
-
-// ============= INTERFACE =============
+// ============= RENDER MAIN =============
 
 function render() {
   if (!isLoggedIn) {
-    showLoginScreen();
-    return;
+    showLoginScreen()
+    return
   }
   
-  const app = document.getElementById('app');
+  const app = document.getElementById('app')
   
   if (currentScreen === 'lijst') {
-    renderList(app);
+    renderList(app)
   } else if (currentScreen === 'nieuw') {
-    renderForm(app);
+    renderForm(app)
   } else if (currentScreen === 'scan') {
-    renderScan(app);
-  } else if (currentScreen === 'profielen') {
-    renderProfiles(app);
-  } else if (currentScreen === 'wijndetails') {
-    renderWineDetails(app);
+    renderScan(app)
   }
 }
 
 function renderList(container) {
-  const currentProf = getCurrentProfile();
   container.innerHTML = `
     <div class="app">
-      <div style="background: #e8f5e9; padding: 10px; border-radius: 4px; margin-bottom: 1rem; font-size: 13px;">
-        👤 Actief profiel: <strong>${currentProf?.name || 'Geen'}</strong>
-        <button class="button" onclick="switchScreen('profielen')" style="float: right; font-size: 11px; padding: 4px 8px; height: auto;">Wisselen</button>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h1>Alle wijnen</h1>
+        <div style="display: flex; gap: 8px;">
+          <button class="button" onclick="switchScreen('nieuw')" style="font-size: 14px; padding: 8px 12px;">+ Nieuwe notitie</button>
+          <button class="button" onclick="showMyWines()" style="font-size: 14px; padding: 8px 12px;">👤 Mijn wijnen</button>
+        </div>
       </div>
-      <h1>Mijn wijnen</h1>
-      <button class="button" onclick="switchScreen('nieuw')" style="width: 100%; margin-bottom: 1rem;">+ Nieuwe notitie</button>
       
       <input type="text" id="search" placeholder="Zoek op naam, druif, regio..." style="width: 100%; margin-bottom: 1rem; padding: 8px; border: 0.5px solid var(--color-border); border-radius: 4px;" oninput="filterAndSearch()">
       
@@ -342,224 +200,97 @@ function renderList(container) {
       
       <div class="wine-list" id="wine-list"></div>
     </div>
-  `;
+  `
   
-  const searchInput = document.getElementById('search');
-  if (searchInput) {
-    searchInput.addEventListener('input', filterAndSearch);
-  }
-  
-  renderFiltersAndList();
+  renderFiltersAndList()
 }
 
 function renderFiltersAndList() {
-  const uniqueWines = [...new Map(wines.map(w => [w.wineId, w])).values()];
-  const druiven = [...new Set(uniqueWines.map(w => w.druif).filter(Boolean))];
-  const filterDiv = document.getElementById('filters');
+  const uniqueWines = [...new Map(wines.map(w => [w.wine_id, w])).values()]
+  const druiven = [...new Set(uniqueWines.map(w => w.druif).filter(Boolean))]
+  const filterDiv = document.getElementById('filters')
   
-  if (!filterDiv) return;
+  if (!filterDiv) return
   
-  filterDiv.innerHTML = '';
+  filterDiv.innerHTML = ''
   
-  const allBtn = document.createElement('button');
-  allBtn.className = 'filter-chip' + (currentFilter === null ? ' active' : '');
-  allBtn.textContent = 'Alles';
-  allBtn.onclick = () => { currentFilter = null; renderFiltersAndList(); filterAndSearch(); };
-  filterDiv.appendChild(allBtn);
+  const allBtn = document.createElement('button')
+  allBtn.className = 'filter-chip' + (currentFilter === null ? ' active' : '')
+  allBtn.textContent = 'Alles'
+  allBtn.onclick = () => { currentFilter = null; renderFiltersAndList(); filterAndSearch() }
+  filterDiv.appendChild(allBtn)
   
   druiven.forEach(druif => {
-    const btn = document.createElement('button');
-    btn.className = 'filter-chip' + (druif === currentFilter ? ' active' : '');
-    btn.textContent = druif;
-    btn.onclick = () => { currentFilter = druif; renderFiltersAndList(); filterAndSearch(); };
-    filterDiv.appendChild(btn);
-  });
+    const btn = document.createElement('button')
+    btn.className = 'filter-chip' + (druif === currentFilter ? ' active' : '')
+    btn.textContent = druif
+    btn.onclick = () => { currentFilter = druif; renderFiltersAndList(); filterAndSearch() }
+    filterDiv.appendChild(btn)
+  })
   
-  filterAndSearch();
+  filterAndSearch()
 }
 
-function renderProfiles(container) {
-  container.innerHTML = `
-    <div class="app">
-      <button class="button" onclick="switchScreen('lijst')" style="margin-bottom: 1rem;">← Terug naar wijnen</button>
-      <h1>Mijn Profielen</h1>
-      <button class="button" onclick="promptNewProfile()" style="width: 100%; margin-bottom: 1rem;">+ Nieuw profiel</button>
-      
-      <div id="profiles-list"></div>
-    </div>
-  `;
+function showMyWines() {
+  const myWines = wines.filter(w => w.user_id === currentUserId)
   
-  const list = document.getElementById('profiles-list');
-  
-  if (profiles.length === 0) {
-    list.innerHTML = '<div class="empty-state">Geen profielen</div>';
-    return;
-  }
-  
-  const profilesWithStats = profiles.map(p => ({
-    ...p,
-    stats: getProfileStats(p.id)
-  })).sort((a, b) => {
-    const scoreA = a.stats?.averageScore || 0;
-    const scoreB = b.stats?.averageScore || 0;
-    return scoreB - scoreA;
-  });
-  
-  list.innerHTML = profilesWithStats.map((p, idx) => {
-    const stats = p.stats;
-    const isCurrent = p.id === currentProfile;
-    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
-    
-    return `
-      <div class="wine-card" style="border-left: 4px solid ${isCurrent ? '#4caf50' : '#ccc'}; cursor: pointer;" onclick="switchProfile(${p.id})">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <div style="font-weight: 500; font-size: 15px;">${medal} ${p.name}</div>
-            <div style="font-size: 12px; color: #999; margin-top: 4px;">Aangemaakt: ${p.createdAt}</div>
-          </div>
-          ${stats ? `
-            <div style="text-align: right;">
-              <div style="font-size: 24px; font-weight: bold; color: #4caf50;">${stats.averageScore}</div>
-              <div style="font-size: 11px; color: #666;">gemiddeld</div>
-            </div>
-          ` : ''}
-        </div>
-        ${stats ? `
-          <div style="margin-top: 8px; font-size: 12px; color: #666;">
-            ${stats.scoredWines}/${stats.totalWines} wijnen beoordeeld
-          </div>
-        ` : `
-          <div style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic;">
-            Nog geen wijnen beoordeeld
-          </div>
-        `}
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
-          <button class="button" onclick="selectProfileAndNew(${p.id})" style="font-size: 12px; padding: 6px; background: #e8f5e9; color: #2e7d32;">+ Nieuw</button>
-          <button class="button" onclick="viewProfileWines(event, ${p.id})" style="font-size: 12px; padding: 6px;">Geschiedenis</button>
-        </div>
-        <button class="button" onclick="deleteProfile(event, ${p.id})" style="width: 100%; margin-top: 4px; font-size: 12px; padding: 6px; background: #ffebee; color: #c62828;">Verwijderen</button>
-      </div>
-    `;
-  }).join('');
-}
-
-function promptNewProfile() {
-  const name = prompt('Naam voor nieuw profiel:');
-  if (name && name.trim()) {
-    createProfile(name.trim());
-    renderProfiles(document.getElementById('app'));
-  }
-}
-
-function switchProfile(profileId) {
-  currentProfile = profileId;
-  renderProfiles(document.getElementById('app'));
-}
-
-function viewProfileWines(event, profileId) {
-  event.stopPropagation();
-  const profile = profiles.find(p => p.id === profileId);
-  
-  const app = document.getElementById('app');
+  const app = document.getElementById('app')
   app.innerHTML = `
     <div class="app">
-      <button class="button" onclick="switchScreen('profielen')" style="margin-bottom: 1rem;">← Terug naar profielen</button>
-      <h2>${profile.name} - Geschiedenis</h2>
-      <div class="wine-list" id="profile-wines"></div>
+      <button class="button" onclick="switchScreen('lijst')" style="margin-bottom: 1rem;">← Terug naar alle wijnen</button>
+      
+      <h2>Mijn wijnen</h2>
+      <div class="wine-list" id="my-wines"></div>
     </div>
-  `;
+  `
   
-  const list = document.getElementById('profile-wines');
-  if (profile.wines.length === 0) {
-    list.innerHTML = '<div class="empty-state">Geen wijnen in dit profiel</div>';
-    return;
-  }
-  
-  const profileWinesSorted = [...profile.wines].sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
-  
-  list.innerHTML = profileWinesSorted.map(pw => {
-    const w = wines.find(wine => wine.id === pw.noteId);
-    if (!w) return '';
-    return `
-      <div class="wine-card" onclick="showWineGroupDetail('${w.wineId}')">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <div style="font-weight: 500;">${w.naam}</div>
-            <div style="font-size: 12px; color: #999; margin-top: 2px;">
-              ${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}
-            </div>
-          </div>
-          ${pw.aiScore ? `
-            <div style="font-size: 20px; font-weight: bold; color: #4caf50;">${pw.aiScore}</div>
-          ` : ''}
+  const list = document.getElementById('my-wines')
+  if (myWines.length === 0) {
+    list.innerHTML = '<div class="empty-state">Je hebt nog geen wijnen geproefd</div>'
+  } else {
+    list.innerHTML = myWines.map(w => `
+      <div class="wine-card" onclick="showWineGroupDetail('${w.wine_id}')">
+        <div style="font-weight: 500;">${w.naam}</div>
+        <div style="font-size: 12px; color: #666;">
+          ${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}
         </div>
-        ${pw.aiScoreDate ? `<div style="font-size: 11px; color: #999; margin-top: 4px;">Beoordeeld: ${pw.aiScoreDate}</div>` : ''}
+        <div style="font-size: 11px; color: #999; margin-top: 4px;">
+          ${w.created_at ? new Date(w.created_at).toLocaleDateString('nl-NL') : ''}
+        </div>
       </div>
-    `;
-  }).join('');
-}
-
-function deleteProfile(event, profileId) {
-  event.stopPropagation();
-  if (confirm('Weet je zeker? Je kunt dit niet ongedaan maken.')) {
-    profiles = profiles.filter(p => p.id !== profileId);
-    if (profiles.length === 0) {
-      createProfile('Mijn profiel');
-    } else if (currentProfile === profileId) {
-      currentProfile = profiles[0].id;
-    }
-    saveProfiles();
-    renderProfiles(document.getElementById('app'));
+    `).join('')
   }
-}
-
-function selectProfileAndNew(profileId) {
-  currentProfile = profileId;
-  editingWineId = null;
-  switchScreen('nieuw');
-}
-
-function setFilter(druif) {
-  currentFilter = druif;
-  document.querySelectorAll('.filter-chip').forEach(btn => {
-    btn.classList.remove('active');
-  });
-  event.target.classList.add('active');
-  filterAndSearch();
 }
 
 function filterAndSearch() {
-  const searchInput = document.getElementById('search');
-  currentSearch = searchInput ? searchInput.value.toLowerCase() : '';
+  const searchInput = document.getElementById('search')
+  currentSearch = searchInput ? searchInput.value.toLowerCase() : ''
   
-  const uniqueWines = [...new Map(wines.map(w => [w.wineId, w])).values()];
+  const uniqueWines = [...new Map(wines.map(w => [w.wine_id, w])).values()]
   
   let filtered = currentFilter 
     ? uniqueWines.filter(w => w.druif === currentFilter)
-    : uniqueWines;
+    : uniqueWines
   
   if (currentSearch) {
     filtered = filtered.filter(w => 
       (w.naam && w.naam.toLowerCase().includes(currentSearch)) ||
       (w.druif && w.druif.toLowerCase().includes(currentSearch)) ||
       (w.regio && w.regio.toLowerCase().includes(currentSearch))
-    );
+    )
   }
   
-  const list = document.getElementById('wine-list');
-  if (!list) return;
+  const list = document.getElementById('wine-list')
+  if (!list) return
   
   if (filtered.length === 0) {
-    list.innerHTML = '<div class="empty-state">Geen wijnen gevonden</div>';
+    list.innerHTML = '<div class="empty-state">Geen wijnen gevonden</div>'
   } else {
     list.innerHTML = filtered.map(w => {
-      const allNotesForWine = getWineNotes(w.wineId);
-      const reviewingProfiles = profiles.filter(p => 
-        p.wines.find(pw => pw.wineId === w.wineId)
-      );
+      const allNotesForWine = wines.filter(note => note.wine_id === w.wine_id)
       
       return `
-        <div class="wine-card" onclick="showWineGroupDetail('${w.wineId}')">
+        <div class="wine-card" onclick="showWineGroupDetail('${w.wine_id}')">
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
               <div style="font-weight: 500;">${w.naam}</div>
@@ -570,39 +301,21 @@ function filterAndSearch() {
                 ${allNotesForWine.length} notitie${allNotesForWine.length !== 1 ? 's' : ''}
               </div>
             </div>
-            ${reviewingProfiles.length > 0 ? `
-              <div style="display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;">
-                ${reviewingProfiles.map(p => {
-                  const profileWine = p.wines.find(pw => pw.wineId === w.wineId);
-                  return `
-                    <button class="chip" onclick="event.stopPropagation(); showWineReviews('${w.wineId}')" style="font-size: 11px; padding: 4px 8px; cursor: pointer;">
-                      ${p.name} ${profileWine.aiScore ? '(' + profileWine.aiScore + ')' : ''}
-                    </button>
-                  `;
-                }).join('')}
-              </div>
-            ` : ''}
           </div>
         </div>
-      `;
-    }).join('');
+      `
+    }).join('')
   }
 }
 
-// ============= WINE GROUP DETAIL =============
-
 function showWineGroupDetail(wineId) {
-  const allNotes = getWineNotes(wineId);
-  if (allNotes.length === 0) return;
+  const allNotes = getWineNotes(wineId)
+  if (allNotes.length === 0) return
   
-  const firstNote = allNotes[0];
-  const currentProf = getCurrentProfile();
-  const myNote = allNotes.find(n => {
-    const profileNote = currentProf?.wines.find(pw => pw.noteId === n.id);
-    return !!profileNote;
-  });
+  const firstNote = allNotes[0]
+  const myNote = allNotes.find(n => n.user_id === currentUserId)
   
-  const app = document.getElementById('app');
+  const app = document.getElementById('app')
   app.innerHTML = `
     <div class="app">
       <button class="button" onclick="switchScreen('lijst')" style="margin-bottom: 1rem;">← Terug</button>
@@ -618,36 +331,35 @@ function showWineGroupDetail(wineId) {
       
       ${myNote ? `
         <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--color-border);">
-          <button class="button" onclick="editWine(${myNote.id})" style="width: 100%; background: #e3f2fd; color: #1976d2; margin-bottom: 0.5rem;">✏️ Mijn notitie bewerken</button>
+          <button class="button" onclick="editWine('${myNote.id}')" style="width: 100%; background: #e3f2fd; color: #1976d2; margin-bottom: 0.5rem;">✏️ Mijn notitie bewerken</button>
           <button class="button" onclick="addNoteToWine('${wineId}')" style="width: 100%; background: #e8f5e9; color: #2e7d32;">+ Nog een notitie voor deze wijn</button>
         </div>
       ` : `
         <button class="button" onclick="addNoteToWine('${wineId}')" style="width: 100%; background: #e8f5e9; color: #2e7d32; margin-top: 2rem;">+ Voeg notitie toe</button>
       `}
     </div>
-  `;
+  `
   
-  const tabsDiv = document.getElementById('notes-tabs');
+  const tabsDiv = document.getElementById('notes-tabs')
   tabsDiv.innerHTML = allNotes.map((note, idx) => {
-    const profile = profiles.find(p => p.wines.find(pw => pw.noteId === note.id));
-    const isMyNote = myNote?.id === note.id;
+    const isMyNote = myNote?.id === note.id
     return `
-      <button class="filter-chip ${idx === 0 ? 'active' : ''}" onclick="showNoteDetail(${note.id}, '${wineId}')" style="padding: 6px 12px;">
-        ${profile?.name || 'Onbekend'} ${isMyNote ? '(jij)' : ''}
+      <button class="filter-chip ${idx === 0 ? 'active' : ''}" onclick="showNoteDetail('${note.id}', '${wineId}')" style="padding: 6px 12px;">
+        ${note.user_id === currentUserId ? 'Jij' : 'Iemand'} ${isMyNote ? '' : ''}
       </button>
-    `;
-  }).join('');
+    `
+  }).join('')
   
-  showNoteDetail(allNotes[0].id, wineId);
+  showNoteDetail(allNotes[0].id, wineId)
 }
 
 function showNoteDetail(noteId, wineId) {
-  const note = wines.find(w => w.id === noteId);
-  if (!note) return;
+  const note = wines.find(w => w.id === noteId)
+  if (!note) return
   
-  const row = (label, val) => val ? `<tr><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); color: #666; width: 120px;">${label}</td><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); font-weight: 500;">${val}</td></tr>` : '';
+  const row = (label, val) => val ? `<tr><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); color: #666; width: 120px;">${label}</td><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); font-weight: 500;">${val}</td></tr>` : ''
   
-  const contentDiv = document.getElementById('notes-content');
+  const contentDiv = document.getElementById('notes-content')
   contentDiv.innerHTML = `
     <div class="card">
       <div class="section-title">Wijninfo</div>
@@ -673,10 +385,10 @@ function showNoteDetail(noteId, wineId) {
       <div class="section-title">Geur</div>
       <table style="width: 100%; border-collapse: collapse;">
         ${row('Conditie', note.conditie)}
-        ${row('Intensiteit', note.geurInt)}
+        ${row('Intensiteit', note.geur_int)}
         ${row('Aroma' + "'" + 's', note.aroma)}
       </table>
-      ${note.notitieGeur ? `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px;">${note.notitieGeur}</div>` : ''}
+      ${note.notitie_geur ? `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px;">${note.notitie_geur}</div>` : ''}
     </div>
 
     <div class="card">
@@ -686,11 +398,11 @@ function showNoteDetail(noteId, wineId) {
         ${row('Zuur', note.zuur)}
         ${row('Tannine', note.tannine)}
         ${row('Body', note.body)}
-        ${row('Intensiteit', note.smaakInt)}
+        ${row('Intensiteit', note.smaak_int)}
         ${row('Smaken', note.smaak)}
         ${row('Afdronk', note.afdronk)}
       </table>
-      ${note.notitieSmaak ? `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px;">${note.notitieSmaak}</div>` : ''}
+      ${note.notitie_smaak ? `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px;">${note.notitie_smaak}</div>` : ''}
     </div>
 
     <div class="card">
@@ -700,107 +412,99 @@ function showNoteDetail(noteId, wineId) {
       </table>
     </div>
 
-    <button class="button" onclick="checkWithAI(${note.id})" style="width: 100%; margin-top: 1rem; background: #e8f5e9; color: #2e7d32; font-weight: 500;">🔍 Laat nakijken door AI-sommelier</button>
-  `;
+    <button class="button" onclick="checkWithAI('${note.id}')" style="width: 100%; margin-top: 1rem; background: #e8f5e9; color: #2e7d32; font-weight: 500;">🔍 Laat nakijken door AI-sommelier</button>
+  `
 }
 
 function addNoteToWine(wineId) {
-  editingWineId = null;
-  const existingNote = wines.find(w => w.wineId === wineId);
+  editingWineId = null
+  const existingNote = wines.find(w => w.wine_id === wineId)
   if (existingNote) {
     scannedWineData = {
       naam: existingNote.naam,
       druif: existingNote.druif,
       jaar: existingNote.jaar,
-      regio: existingNote.regio,
-      type: existingNote.type
-    };
+      regio: existingNote.regio
+    }
   }
-  switchScreen('nieuw');
+  switchScreen('nieuw')
   
   setTimeout(() => {
     if (existingNote) {
-      document.getElementById('f-naam').value = existingNote.naam;
-      document.getElementById('f-jaar').value = existingNote.jaar;
-      document.getElementById('f-druif').value = existingNote.druif;
-      document.getElementById('f-regio').value = existingNote.regio;
+      document.getElementById('f-naam').value = existingNote.naam
+      document.getElementById('f-jaar').value = existingNote.jaar
+      document.getElementById('f-druif').value = existingNote.druif
+      document.getElementById('f-regio').value = existingNote.regio
     }
-    window.scrollTo(0, 0);
-  }, 50);
+    window.scrollTo(0, 0)
+  }, 50)
 }
 
 function editWine(noteId) {
-  editingWineId = noteId;
-  const wine = wines.find(w => w.id === noteId);
-  if (!wine) return;
+  editingWineId = noteId
+  const wine = wines.find(w => w.id === noteId)
+  if (!wine) return
   
-  switchScreen('nieuw');
+  switchScreen('nieuw')
   
   setTimeout(() => {
-    // Pre-fill text fields
-    document.getElementById('f-naam').value = wine.naam;
-    document.getElementById('f-jaar').value = wine.jaar;
-    document.getElementById('f-druif').value = wine.druif;
-    document.getElementById('f-regio').value = wine.regio;
-    document.getElementById('f-prijs').value = wine.prijs;
-    document.getElementById('f-gastro').value = wine.gastro;
+    document.getElementById('f-naam').value = wine.naam
+    document.getElementById('f-jaar').value = wine.jaar
+    document.getElementById('f-druif').value = wine.druif
+    document.getElementById('f-regio').value = wine.regio
+    document.getElementById('f-prijs').value = wine.prijs || ''
+    document.getElementById('f-gastro').value = wine.gastro || ''
     
-    // Reset all chips first
-    document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
-    chipState = {};
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'))
+    chipState = {}
     
-    // Helper to select single chips
     const selectChip = (groupId, value) => {
       document.querySelectorAll(`#chips-${groupId} .chip`).forEach(btn => {
         if (btn.textContent.trim() === value.trim()) {
-          btn.classList.add('selected');
-          chipState[groupId] = value;
+          btn.classList.add('selected')
+          chipState[groupId] = value
         }
-      });
-    };
+      })
+    }
     
-    // Select single-select chips
-    if (wine.helderheid) selectChip('helderheid', wine.helderheid);
-    if (wine.intensiteit) selectChip('intensiteit', wine.intensiteit);
-    if (wine.kleur) selectChip('kleur', wine.kleur);
-    if (wine.conditie) selectChip('conditie', wine.conditie);
-    if (wine.geurInt) selectChip('geur-int', wine.geurInt);
-    if (wine.zoetheid) selectChip('zoetheid', wine.zoetheid);
-    if (wine.zuur) selectChip('zuur', wine.zuur);
-    if (wine.tannine) selectChip('tannine', wine.tannine);
-    if (wine.body) selectChip('body', wine.body);
-    if (wine.smaakInt) selectChip('smaak-int', wine.smaakInt);
-    if (wine.afdronk) selectChip('afdronk', wine.afdronk);
-    if (wine.kwaliteit) selectChip('kwaliteit', wine.kwaliteit);
+    if (wine.helderheid) selectChip('helderheid', wine.helderheid)
+    if (wine.intensiteit) selectChip('intensiteit', wine.intensiteit)
+    if (wine.kleur) selectChip('kleur', wine.kleur)
+    if (wine.conditie) selectChip('conditie', wine.conditie)
+    if (wine.geur_int) selectChip('geur-int', wine.geur_int)
+    if (wine.zoetheid) selectChip('zoetheid', wine.zoetheid)
+    if (wine.zuur) selectChip('zuur', wine.zuur)
+    if (wine.tannine) selectChip('tannine', wine.tannine)
+    if (wine.body) selectChip('body', wine.body)
+    if (wine.smaak_int) selectChip('smaak-int', wine.smaak_int)
+    if (wine.afdronk) selectChip('afdronk', wine.afdronk)
+    if (wine.kwaliteit) selectChip('kwaliteit', wine.kwaliteit)
     
-    // Multi-select: aroma
     if (wine.aroma) {
-      const aromaList = wine.aroma.split(', ');
-      chipState['aroma'] = aromaList;
+      const aromaList = wine.aroma.split(', ')
+      chipState['aroma'] = aromaList
       document.querySelectorAll('#chips-aroma .chip').forEach(btn => {
         if (aromaList.includes(btn.textContent.trim())) {
-          btn.classList.add('selected');
+          btn.classList.add('selected')
         }
-      });
+      })
     }
     
-    // Multi-select: smaak
     if (wine.smaak) {
-      const smaakList = wine.smaak.split(', ');
-      chipState['smaak'] = smaakList;
+      const smaakList = wine.smaak.split(', ')
+      chipState['smaak'] = smaakList
       document.querySelectorAll('#chips-smaak .chip').forEach(btn => {
         if (smaakList.includes(btn.textContent.trim())) {
-          btn.classList.add('selected');
+          btn.classList.add('selected')
         }
-      });
+      })
     }
     
-    // Textareas
-    document.getElementById('f-notitie-geur').value = wine.notitieGeur;
-    document.getElementById('f-notitie-smaak').value = wine.notitieSmaak;
+    document.getElementById('f-notitie-geur').value = wine.notitie_geur || ''
+    document.getElementById('f-notitie-smaak').value = wine.notitie_smaak || ''
     
-    window.scrollTo(0, 0);
-  }, 100);
+    window.scrollTo(0, 0)
+  }, 100)
 }
 
 function renderForm(container) {
@@ -1046,8 +750,9 @@ function renderForm(container) {
 function renderScan(container) {
   container.innerHTML = `
     <div class="app">
+      <button class="button" onclick="switchScreen('nieuw')" style="margin-bottom: 1rem;">← Terug naar formulier</button>
       <h2>Etiket herkennen</h2>
-      
+            
       <div class="card">
         <div style="border: 2px dashed var(--color-border); padding: 2rem; text-align: center; cursor: pointer;" 
              onclick="document.getElementById('img-input').click()">
@@ -1069,118 +774,135 @@ function renderScan(container) {
         </div>
       </div>
     </div>
-  `;
+  `
 }
 
 function useScannedWine() {
-  if (!scannedWineData) return;
+  if (!scannedWineData) return
   
-  editingWineId = null;
-  switchScreen('nieuw');
+  editingWineId = null
+  switchScreen('nieuw')
   
   setTimeout(() => {
-    if (scannedWineData.naam) document.getElementById('f-naam').value = scannedWineData.naam;
-    if (scannedWineData.druif) document.getElementById('f-druif').value = scannedWineData.druif;
-    if (scannedWineData.jaar) document.getElementById('f-jaar').value = scannedWineData.jaar;
-    if (scannedWineData.regio) document.getElementById('f-regio').value = scannedWineData.regio;
+    if (scannedWineData.naam) document.getElementById('f-naam').value = scannedWineData.naam
+    if (scannedWineData.druif) document.getElementById('f-druif').value = scannedWineData.druif
+    if (scannedWineData.jaar) document.getElementById('f-jaar').value = scannedWineData.jaar
+    if (scannedWineData.regio) document.getElementById('f-regio').value = scannedWineData.regio
     
-    window.scrollTo(0, 0);
-  }, 100);
+    window.scrollTo(0, 0)
+  }, 100)
+}
+
+function setupChips() {
+  // Chips werken via inline onclick handlers
+  // Kan later uitgebreid worden voor meer complex behavior
 }
 
 function toggleChip(el, group) {
-  const multiSelect = ['aroma', 'smaak'].includes(group);
+  const multiSelect = ['aroma', 'smaak'].includes(group)
   
   if (!multiSelect) {
     document.querySelectorAll(`#chips-${group} .chip.selected`).forEach(c => {
-      c.classList.remove('selected');
-    });
-    el.classList.add('selected');
-    chipState[group] = el.textContent.trim();
+      c.classList.remove('selected')
+    })
+    el.classList.add('selected')
+    chipState[group] = el.textContent.trim()
   } else {
-    el.classList.toggle('selected');
-    if (!chipState[group]) chipState[group] = [];
-    const text = el.textContent.trim();
+    el.classList.toggle('selected')
+    if (!chipState[group]) chipState[group] = []
+    const text = el.textContent.trim()
     if (el.classList.contains('selected')) {
-      if (!chipState[group].includes(text)) chipState[group].push(text);
+      if (!chipState[group].includes(text)) chipState[group].push(text)
     } else {
-      chipState[group] = chipState[group].filter(x => x !== text);
+      chipState[group] = chipState[group].filter(x => x !== text)
     }
   }
 }
 
-function setupChips() {
-  // Chip listeners already set via onclick
-}
-
 function getChips(group) {
-  const v = chipState[group];
-  if (!v) return '';
-  return Array.isArray(v) ? v.join(', ') : v;
+  const v = chipState[group]
+  if (!v) return ''
+  return Array.isArray(v) ? v.join(', ') : v
 }
 
-function saveWine() {
-  const naam = document.getElementById('f-naam').value.trim();
-  if (!naam) {
-    alert('Vul minimaal de naam in');
-    return;
+async function saveWine() {
+  const userId = await getCurrentUserId()
+  
+  if (!userId) {
+    alert('No user found')
+    return
   }
   
-  const druif = document.getElementById('f-druif').value.trim();
-  const jaar = document.getElementById('f-jaar').value.trim();
-  const regio = document.getElementById('f-regio').value.trim();
-  
-  const wineId = generateWineId(naam, druif, jaar, regio);
+  const naam = document.getElementById('f-naam').value.trim()
+  if (!naam) {
+    alert('Vul minimaal de naam in')
+    return
+  }
+  const druif = document.getElementById('f-druif').value.trim()
+  const jaar = document.getElementById('f-jaar').value.trim()
+  const regio = document.getElementById('f-regio').value.trim()  
+  const wineId = generateWineId(naam, druif, jaar, regio)
   
   if (editingWineId) {
     // EDIT MODE
-    const wineIdx = wines.findIndex(w => w.id === editingWineId);
-    if (wineIdx === -1) return;
-    
-    wines[wineIdx] = {
+    const wineIdx = wines.findIndex(w => w.id === editingWineId)
+    if (wineIdx === -1) return
+    const updatedWine = {
       ...wines[wineIdx],
       naam,
       druif,
       jaar,
       regio,
-      wineId,
+      wine_id: wineId,
       prijs: document.getElementById('f-prijs').value.trim(),
       gastro: document.getElementById('f-gastro').value.trim(),
       helderheid: getChips('helderheid'),
       intensiteit: getChips('intensiteit'),
       kleur: getChips('kleur'),
       conditie: getChips('conditie'),
-      geurInt: getChips('geur-int'),
+      geur_int: getChips('geur-int'),
       aroma: getChips('aroma'),
-      notitieGeur: document.getElementById('f-notitie-geur').value.trim(),
+      notitie_geur: document.getElementById('f-notitie-geur').value.trim(),
       zoetheid: getChips('zoetheid'),
       zuur: getChips('zuur'),
       tannine: getChips('tannine'),
       body: getChips('body'),
-      smaakInt: getChips('smaak-int'),
+      smaak_int: getChips('smaak-int'),
       smaak: getChips('smaak'),
       afdronk: getChips('afdronk'),
-      notitieSmaak: document.getElementById('f-notitie-smaak').value.trim(),
+      notitie_smaak: document.getElementById('f-notitie-smaak').value.trim(),
       kwaliteit: getChips('kwaliteit'),
-      editedAt: new Date().toLocaleDateString('nl-NL')
-    };
+      updated_at: new Date().toISOString()
+    }
     
-    editingWineId = null;
+    wines[wineIdx] = updatedWine
+    
+    const { error } = await supabase
+      .from('wines')
+      .update(updatedWine)
+      .eq('id', editingWineId)
+    
+    if (error) {
+      alert('Fout bij opslaan: ' + error.message)
+      return
+    }
+    
+    editingWineId = null
   } else {
     // NEW MODE
-    const existingWine = findExistingWine(naam, druif, jaar, regio);
+    const existingWine = findExistingWine(naam, druif, jaar, regio)
     
     if (existingWine) {
-      const confirmed = confirm(`Deze wijn bestaat al (${getWineNotes(wineId).length} notitie${getWineNotes(wineId).length !== 1 ? 's' : ''}). Wil je een nieuwe notitie toevoegen?`);
+      const confirmed = confirm(`Deze wijn bestaat al. Wil je een nieuwe notitie toevoegen?`)
       if (!confirmed) {
-        resetForm();
-        return;
+        resetForm()
+        return
       }
     }
     
     const wine = {
-      id: Date.now(),
-      wineId,
+      id: crypto.randomUUID(),
+      wine_id: wineId,
       naam,
       druif,
       jaar,
@@ -1191,160 +913,91 @@ function saveWine() {
       intensiteit: getChips('intensiteit'),
       kleur: getChips('kleur'),
       conditie: getChips('conditie'),
-      geurInt: getChips('geur-int'),
+      geur_int: getChips('geur-int'),
       aroma: getChips('aroma'),
-      notitieGeur: document.getElementById('f-notitie-geur').value.trim(),
+      notitie_geur: document.getElementById('f-notitie-geur').value.trim(),
       zoetheid: getChips('zoetheid'),
       zuur: getChips('zuur'),
       tannine: getChips('tannine'),
       body: getChips('body'),
-      smaakInt: getChips('smaak-int'),
+      smaak_int: getChips('smaak-int'),
       smaak: getChips('smaak'),
       afdronk: getChips('afdronk'),
-      notitieSmaak: document.getElementById('f-notitie-smaak').value.trim(),
+      notitie_smaak: document.getElementById('f-notitie-smaak').value.trim(),
       kwaliteit: getChips('kwaliteit'),
-      datum: new Date().toLocaleDateString('nl-NL')
-    };
+      user_id: currentUserId,
+      ai_score: null,
+      ai_score_date: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
     
-    wines.unshift(wine);
-    addWineToProfile(wine);
+    const { error } = await supabase
+      .from('wines')
+      .insert([wine])
+    
+    if (error) {
+      alert('Fout bij opslaan: ' + error.message)
+      return  // NIET toevoegen aan array
+    }
+    
+    // Nu pas toevoegen
+    wines.unshift(wine)
   }
   
-  saveWines();
-  resetForm();
-  switchScreen('lijst');
+  resetForm()
+  switchScreen('lijst')
 }
 
 function resetForm() {
   ['f-naam', 'f-jaar', 'f-druif', 'f-regio', 'f-prijs', 'f-gastro', 'f-notitie-geur', 'f-notitie-smaak'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
-  chipState = {};
+    const el = document.getElementById(id)
+    if (el) el.value = ''
+  })
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'))
+  chipState = {}
 }
 
 function switchScreen(screen) {
-  currentScreen = screen;
-  render();
+  currentScreen = screen
+  render()
 }
 
-function showWineReviews(wineId) {
-  const note = wines.find(w => w.wineId === wineId);
-  const reviewingProfiles = profiles.filter(p => 
-    p.wines.find(pw => pw.wineId === wineId)
-  );
-  
-  const reviewsDiv = document.createElement('div');
-  reviewsDiv.id = 'wine-reviews-modal';
-  reviewsDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;';
-  
-  reviewsDiv.innerHTML = `
-    <div style="background: white; border-radius: 8px; padding: 2rem; max-width: 500px; max-height: 80vh; overflow-y: auto; width: 90%;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <h2 style="margin: 0;">${note.naam}</h2>
-        <button onclick="document.getElementById('wine-reviews-modal').remove()" style="background: none; border: none; font-size: 20px; cursor: pointer;">✕</button>
-      </div>
-      
-      <div style="display: flex; gap: 8px; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 1rem; overflow-x: auto;">
-        ${reviewingProfiles.map(p => {
-          const profileWine = p.wines.find(pw => pw.wineId === wineId);
-          return `
-            <button class="filter-chip" onclick="showReviewTab('${p.id}', '${wineId}')" id="tab-${p.id}" style="border: none; padding: 8px 12px;">
-              ${p.name} ${profileWine.aiScore ? '(' + profileWine.aiScore + ')' : ''}
-            </button>
-          `;
-        }).join('')}
-      </div>
-      
-      <div id="review-content"></div>
-    </div>
-  `;
-  
-  document.body.appendChild(reviewsDiv);
-  
-  if (reviewingProfiles.length > 0) {
-    showReviewTab(reviewingProfiles[0].id, wineId);
-  }
-}
-
-function showReviewTab(profileId, wineId) {
-  const wine = wines.find(w => w.wineId === wineId);
-  const profile = profiles.find(p => p.id === profileId);
-  const profileWine = profile.wines.find(w => w.wineId === wineId);
-  
-  document.querySelectorAll('.filter-chip').forEach(btn => {
-    btn.classList.remove('active');
-  });
-  document.getElementById(`tab-${profileId}`).classList.add('active');
-  
-  document.getElementById('review-content').innerHTML = `
-    <div style="font-size: 13px; line-height: 1.6; color: #666;">
-      <div style="margin-bottom: 1rem;">
-        <div style="font-weight: 500; color: #000;">Profiel:</div>
-        ${profile.name}
-      </div>
-      
-      ${profileWine.aiScore ? `
-        <div style="margin-bottom: 1rem;">
-          <div style="font-weight: 500; color: #000;">Score:</div>
-          <div style="font-size: 24px; font-weight: bold; color: #4caf50;">${profileWine.aiScore}/10</div>
-        </div>
-      ` : `
-        <div style="margin-bottom: 1rem; font-style: italic;">Nog niet beoordeeld met AI</div>
-      `}
-      
-      ${profileWine.aiScoreDate ? `
-        <div style="font-size: 11px; color: #999;">
-          Beoordeeld: ${profileWine.aiScoreDate}
-        </div>
-      ` : ''}
-    </div>
-  `;
-}
-
-function deleteWine(id) {
+async function deleteWine(id) {
   if (confirm('Weet je zeker?')) {
-    wines = wines.filter(w => w.id !== id);
+    wines = wines.filter(w => w.id !== id)
     
-    profiles.forEach(p => {
-      p.wines = p.wines.filter(w => w.noteId !== id);
-    });
+    const { error } = await supabase
+      .from('wines')
+      .delete()
+      .eq('id', id)
     
-    saveWines();
-    saveProfiles();
-    switchScreen('lijst');
+    if (error) {
+      alert('Fout bij verwijderen')
+      return
+    }
+    
+    switchScreen('lijst')
   }
 }
 
 function handleImageUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+  const file = event.target.files[0]
+  if (!file) return
   
-  const reader = new FileReader();
+  const reader = new FileReader()
   reader.onload = (e) => {
-    const result = e.target.result;
-    const mediaType = file.type || 'image/jpeg';
+    const result = e.target.result
+    const mediaType = file.type || 'image/jpeg'
     scannedWineData = { 
       base64: result.split(',')[1],
       mediaType: mediaType
-    };
-    document.getElementById('preview-img').src = result;
-    document.getElementById('preview').style.display = 'block';
-    document.getElementById('analyze-btn').style.display = 'block';
-    document.getElementById('scan-status').style.display = 'none';
-  };
-  reader.readAsDataURL(file);
-}
-
-// ============= AI SERVICE =============
-
-const AI_PROVIDER = 'gemini';
-
-async function analyzeWineLabel(imageBase64, mediaType) {
-  if (AI_PROVIDER === 'gemini') {
-    return analyzeWithGemini(imageBase64, mediaType);
+    }
+    document.getElementById('preview-img').src = result
+    document.getElementById('preview').style.display = 'block'
+    document.getElementById('analyze-btn').style.display = 'block'
   }
+  reader.readAsDataURL(file)
 }
 
 async function analyzeWithGemini(imageBase64, mediaType) {
@@ -1352,183 +1005,147 @@ async function analyzeWithGemini(imageBase64, mediaType) {
     const response = await fetch('/api/analyze-wine', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        imageBase64,
-        mediaType,
-        analyzeType: 'label'   // ← VOEG DIT TOE
-      })
-    });
+      body: JSON.stringify({ imageBase64, mediaType, analyzeType: 'label' })
+    })
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Server error');
-    }
-
-    return await response.json();
+    if (!response.ok) throw new Error('Server error')
+    return await response.json()
   } catch (err) {
-    console.error('API error:', err);
-    throw new Error('Kon etiket niet herkennen');
+    throw new Error('Kon etiket niet herkennen')
+  }
+}
+
+async function analyzeLabel() {
+  if (!scannedWineData) return
+  
+  const analyzeBtn = document.getElementById('analyze-btn')
+  const status = document.getElementById('scan-status')
+  const resultText = document.getElementById('scan-result-text')
+  const useBtn = document.getElementById('use-btn')
+  
+  analyzeBtn.disabled = true
+  analyzeBtn.style.opacity = '0.5'
+  
+  status.style.display = 'block'
+  resultText.innerHTML = 'AI analyseert het etiket...'
+  useBtn.style.display = 'none'
+  
+  try {
+    const info = await analyzeWithGemini(scannedWineData.base64, scannedWineData.mediaType)
+    scannedWineData = { ...scannedWineData, ...info }
+    
+    resultText.innerHTML = `<strong>${info.naam || '?'}</strong><br><span style="color:#666;">${[info.druif, info.regio, info.jaar].filter(Boolean).join(' · ')}</span>`
+    useBtn.style.display = 'block'
+  } catch (err) {
+    resultText.innerHTML = `<span style="color: #c62828;">${err.message}</span>`
+    analyzeBtn.disabled = false
+    analyzeBtn.style.opacity = '1'
   }
 }
 
 async function checkWithAI(noteId) {
-  const wine = wines.find(w => w.id === noteId);
-  if (!wine) return;
+  const wine = wines.find(w => w.id === noteId)
+  if (!wine) return
   
-  const app = document.getElementById('app');
-  let resultDiv = document.getElementById('ai-check-result');
+  const app = document.getElementById('app')
+  let resultDiv = document.getElementById('ai-check-result')
   
   if (!resultDiv) {
-    resultDiv = document.createElement('div');
-    resultDiv.id = 'ai-check-result';
-    resultDiv.style.marginTop = '1rem';
-    resultDiv.style.padding = '1.5rem';
-    resultDiv.style.background = '#f5f5f5';
-    resultDiv.style.borderRadius = '4px';
-    resultDiv.style.border = '2px solid #4caf50';
-    app.appendChild(resultDiv);
+    resultDiv = document.createElement('div')
+    resultDiv.id = 'ai-check-result'
+    resultDiv.style.marginTop = '1rem'
+    resultDiv.style.padding = '1.5rem'
+    resultDiv.style.background = '#f5f5f5'
+    resultDiv.style.borderRadius = '4px'
+    resultDiv.style.border = '2px solid #4caf50'
+    app.appendChild(resultDiv)
   }
   
-  resultDiv.innerHTML = 'AI analyseert jouw notitie...';
+  resultDiv.innerHTML = 'AI analyseert jouw notitie...'
   
   try {
-    // Verzamel alle notities van gebruiker
     const userNotes = `
 Uiterlijk: ${wine.kleur} | ${wine.helderheid}
 Neus: ${wine.aroma}
-Notitie geur: ${wine.notitieGeur}
+Notitie geur: ${wine.notitie_geur}
 Smaak: ${wine.smaak} | Body: ${wine.body} | Zuur: ${wine.zuur}
-Notitie smaak: ${wine.notitieSmaak}
+Notitie smaak: ${wine.notitie_smaak}
 Kwaliteit: ${wine.kwaliteit}
-`;
-
+`
+    
     const wineInfo = {
       naam: wine.naam,
       jaar: wine.jaar,
       druif: wine.druif,
       regio: wine.regio
-    };
+    }
 
-    // Roep serverless function aan
     const response = await fetch('/api/check-wine', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        wineInfo,
-        userNotes
-      })
-    });
+      body: JSON.stringify({ wineInfo, userNotes })
+    })
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error);
-    }
+    if (!response.ok) throw new Error('Server error')
 
-    const result = await response.json();
-    const { feedback, score } = result;
+    const result = await response.json()
+    const { feedback, score } = result
 
-    // Sla score op
     if (score > 0) {
-      wine.aiScore = score;
-      wine.aiScoreDate = new Date().toLocaleDateString('nl-NL');
-      await saveWines();
+      wine.ai_score = score
+      wine.ai_score_date = new Date().toLocaleDateString('nl-NL')
       
-      const profile = getCurrentProfile();
-      if (profile) {
-        const profileWine = profile.wines.find(w => w.noteId === wine.id);
-        if (profileWine) {
-          profileWine.aiScore = score;
-          profileWine.aiScoreDate = new Date().toLocaleDateString('nl-NL');
-          saveProfiles();
-        }
-      }
+      const { error } = await supabase
+        .from('wines')
+        .update({ ai_score: score, ai_score_date: wine.ai_score_date })
+        .eq('id', wine.id)
     }
-
     resultDiv.innerHTML = `
       <div style="color: #4caf50; font-weight: bold; margin-bottom: 1rem;">✓ AI FEEDBACK</div>
       ${feedback.split('\n').map(line => {
         if (line.includes('**')) {
-          return `<div style="font-weight: 500; margin-top: 0.75rem; font-size: 13px;">${line.replace(/\*\*/g, '')}</div>`;
+          return `<div style="font-weight: 500; margin-top: 0.75rem; font-size: 13px;">${line.replace(/\*\*/g, '')}</div>`
         }
-        if (line.trim() === '') return '';
-        return `<div style="font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 0.5rem;">${line}</div>`;
+        if (line.trim() === '') return ''
+        return `<div style="font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 0.5rem;">${line}</div>`
       }).join('')}
-    `;
+    `
   } catch (err) {
-    resultDiv.innerHTML = `<span style="color: #c62828;">❌ Fout: ${err.message}</span>`;
+    resultDiv.innerHTML = `<span style="color: #c62828;">❌ Fout: ${err.message}</span>`
   }
 }
 
-async function analyzeLabel() {
-  if (!scannedWineData) return;
-  
-  const analyzeBtn = document.getElementById('analyze-btn');
-  const status = document.getElementById('scan-status');
-  const resultText = document.getElementById('scan-result-text');
-  const useBtn = document.getElementById('use-btn');
-  
-  analyzeBtn.disabled = true;
-  analyzeBtn.style.opacity = '0.5';
-  
-  status.style.display = 'block';
-  resultText.innerHTML = 'AI analyseert het etiket...';
-  useBtn.style.display = 'none';
-  
-  const base64 = scannedWineData.base64;
-  const mediaType = scannedWineData.mediaType || 'image/jpeg';
-  
-  try {
-    const info = await analyzeWineLabel(base64, mediaType);
-    scannedWineData = { ...scannedWineData, ...info };
-    
-    resultText.innerHTML = `<strong>${info.naam || '?'}</strong><br><span style="color:#666;">${[info.druif, info.regio, info.jaar].filter(Boolean).join(' · ')}</span>`;
-    useBtn.style.display = 'block';
-  } catch (err) {
-    resultText.innerHTML = `<span style="color: #c62828;">${err.message}</span>`;
-    analyzeBtn.disabled = false;
-    analyzeBtn.style.opacity = '1';
-  }
-}
 // ============= INIT =============
 
 async function init() {
-  await initDB();
-  await loadWines();
-  await initLogin();
+  await loadWines()
   
   if (!isLoggedIn) {
-    showLoginScreen();
+    showLoginScreen()
   } else {
-    await initProfiles();
-    render();
+    render()
   }
 }
 
-document.addEventListener('DOMContentLoaded', init);
 
-// Global window functions
-window.handleLogin = handleLogin;
-window.selectProfile = selectProfile;
-window.createNewProfileFromLogin = createNewProfileFromLogin;
-window.switchScreen = switchScreen;
-window.saveWine = saveWine;
-window.switchProfile = switchProfile;
-window.viewProfileWines = viewProfileWines;
-window.promptNewProfile = promptNewProfile;
-window.deleteProfile = deleteProfile;
-window.selectProfileAndNew = selectProfileAndNew;
-window.deleteWine = deleteWine;
-window.toggleChip = toggleChip;
-window.handleImageUpload = handleImageUpload;
-window.analyzeLabel = analyzeLabel;
-window.useScannedWine = useScannedWine;
-window.render = render;
-window.setFilter = setFilter;
-window.filterAndSearch = filterAndSearch;
-window.checkWithAI = checkWithAI;
-window.showWineReviews = showWineReviews;
-window.showReviewTab = showReviewTab;
-window.showWineGroupDetail = showWineGroupDetail;
-window.showNoteDetail = showNoteDetail;
-window.addNoteToWine = addNoteToWine;
-window.editWine = editWine;
+document.addEventListener('DOMContentLoaded', init)
+
+// Global functions
+window.handleLogin = handleLogin
+window.switchScreen = switchScreen
+window.saveWine = saveWine
+window.deleteWine = deleteWine
+window.toggleChip = toggleChip
+window.handleImageUpload = handleImageUpload
+window.analyzeLabel = analyzeLabel
+window.useScannedWine = useScannedWine
+window.render = render
+window.filterAndSearch = filterAndSearch
+window.checkWithAI = checkWithAI
+window.showWineGroupDetail = showWineGroupDetail
+window.showNoteDetail = showNoteDetail
+window.addNoteToWine = addNoteToWine
+window.editWine = editWine
+window.showSignupScreen = showSignupScreen
+window.handleSignup = handleSignup
+window.showMyWines = showMyWines
