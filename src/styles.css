@@ -1168,3 +1168,123 @@ table td:last-child {
   color: rgba(180, 80, 80, 0.9);
   background: rgba(180, 80, 80, 0.05);
 }
+
+/* ============= HORIZONTALE SCHAAL SELECTOR ============= */
+.scale-selector {
+  margin-bottom: 4px;
+}
+
+.scale-track-wrapper {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  padding: 0 11px;
+}
+
+.scale-track-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 11px;
+  left: 11px;
+  right: 11px;
+  height: 3px;
+  background: var(--color-border);
+  border-radius: 2px;
+  z-index: 0;
+}
+
+.scale-node {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  z-index: 1;
+  padding-bottom: 4px;
+  transition: transform 0.1s;
+}
+
+.scale-node:hover {
+  transform: translateY(-1px);
+}
+
+.scale-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--color-border);
+  background: white;
+  transition: all 0.2s ease;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.scale-node.filled .scale-dot {
+  background: #FFD0D0;
+  border-color: var(--color-primary-pink);
+}
+
+.scale-node.selected .scale-dot {
+  background: var(--color-primary-pink);
+  border-color: var(--color-primary-dark-pink);
+  transform: scale(1.3);
+  box-shadow: 0 0 0 4px rgba(255, 153, 153, 0.25);
+}
+
+.scale-label {
+  font-size: 10px;
+  color: #AAAAAA;
+  text-align: center;
+  font-weight: 500;
+  line-height: 1.3;
+  max-width: 52px;
+  word-break: break-word;
+}
+
+.scale-node.filled .scale-label {
+  color: var(--color-primary-pink);
+}
+
+.scale-node.selected .scale-label {
+  color: var(--color-primary-dark-pink);
+  font-weight: 700;
+  font-size: 11px;
+}
+
+/* ============= WIJNGLAS RATING ============= */
+.wineglass-rating {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 4px 0 8px;
+}
+
+.wineglass-item {
+  cursor: pointer;
+  color: var(--color-primary-pink);
+  opacity: 0.2;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  user-select: none;
+}
+
+.wineglass-item:hover {
+  opacity: 0.5;
+  transform: scale(1.15) translateY(-2px);
+}
+
+.wineglass-item.active {
+  opacity: 1;
+}
+
+.wineglass-item.active:hover {
+  transform: scale(1.15) translateY(-2px);
+}
+
+.wineglass-item .glass-fill {
+  fill: none;
+  transition: fill 0.2s ease;
+}
+
+.wineglass-item.active .glass-fill {
+  fill: currentColor;
+}

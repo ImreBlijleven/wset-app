@@ -804,7 +804,7 @@ function editWine(noteId) {
     
     document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'))
     chipState = {}
-    
+
     const selectChip = (groupId, value) => {
       document.querySelectorAll(`#chips-${groupId} .chip`).forEach(btn => {
         if (btn.textContent.trim() === value.trim()) {
@@ -813,19 +813,25 @@ function editWine(noteId) {
         }
       })
     }
-    
+
+    // Chips (categorisch)
     if (wine.helderheid) selectChip('helderheid', wine.helderheid)
-    if (wine.intensiteit) selectChip('intensiteit', wine.intensiteit)
     if (wine.kleur) selectChip('kleur', wine.kleur)
     if (wine.conditie) selectChip('conditie', wine.conditie)
-    if (wine.geur_int) selectChip('geur-int', wine.geur_int)
-    if (wine.zoetheid) selectChip('zoetheid', wine.zoetheid)
-    if (wine.zuur) selectChip('zuur', wine.zuur)
-    if (wine.tannine) selectChip('tannine', wine.tannine)
-    if (wine.body) selectChip('body', wine.body)
-    if (wine.smaak_int) selectChip('smaak-int', wine.smaak_int)
-    if (wine.afdronk) selectChip('afdronk', wine.afdronk)
-    if (wine.kwaliteit) selectChip('kwaliteit', wine.kwaliteit)
+
+    // Schalen (lineair)
+    if (wine.intensiteit) selectScaleByValue('intensiteit', wine.intensiteit)
+    if (wine.geur_int) selectScaleByValue('geur-int', wine.geur_int)
+    if (wine.zoetheid) selectScaleByValue('zoetheid', wine.zoetheid)
+    if (wine.zuur) selectScaleByValue('zuur', wine.zuur)
+    if (wine.tannine) selectScaleByValue('tannine', wine.tannine)
+    if (wine.body) selectScaleByValue('body', wine.body)
+    if (wine.smaak_int) selectScaleByValue('smaak-int', wine.smaak_int)
+    if (wine.afdronk) selectScaleByValue('afdronk', wine.afdronk)
+    if (wine.kwaliteit) selectScaleByValue('kwaliteit', wine.kwaliteit)
+
+    // Wijnglas-rating
+    if (wine.lekker_rating) setWineRating(wine.lekker_rating)
     
     if (wine.aroma) {
       const aromaList = wine.aroma.split(', ')
@@ -854,6 +860,18 @@ function editWine(noteId) {
   }, 100)
 }
 
+function makeScale(group, options) {
+  const nodes = options.map(opt =>
+    `<div class="scale-node" onclick="selectScale(this,'${group}','${opt}')"><div class="scale-dot"></div><div class="scale-label">${opt}</div></div>`
+  ).join('')
+  return `<div class="scale-selector" id="scale-${group}"><div class="scale-track-wrapper">${nodes}</div></div>`
+}
+
+function makeWineRating() {
+  const glassSvg = `<svg viewBox="0 0 24 42" width="34" height="42" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path class="glass-fill" d="M4 4C3 14 5 22 12 27C19 22 21 14 20 4Z"/><line x1="12" y1="27" x2="12" y2="38"/><line x1="7" y1="38" x2="17" y2="38"/></svg>`
+  return `<div class="wineglass-rating" id="rating-lekker">${[1,2,3,4,5].map(n => `<div class="wineglass-item" onclick="setWineRating(${n})">${glassSvg}</div>`).join('')}</div>`
+}
+
 function renderForm(container) {
   const isEditing = editingWineId !== null;
 
@@ -863,234 +881,196 @@ function renderForm(container) {
         <button class="back-link" onclick="switchScreen('lijst')">← Terug naar overzicht</button>
 
         <h1 class="page-hero-title">${isEditing ? 'Bewerken' : 'Proefnotitie'}</h1>
-      
-      <!-- WIJNINFO -->
-      <div class="card">
-        <div class="section-title">Wijninfo</div>
-        <div class="field">
-          <label>Naam wijn</label>
-          <input type="text" id="f-naam" placeholder="bijv. Château Margaux">
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-          <div class="field">
-            <label>Oogstjaar</label>
-            <input type="text" id="f-jaar" placeholder="2021">
-          </div>
-          <div class="field">
-            <label>Druif / Druiven</label>
-            <input type="text" id="f-druif" placeholder="bijv. Merlot, Cabernet Sauvignon">
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-          <div class="field">
-            <label>Land / Gebied</label>
-            <input type="text" id="f-regio" placeholder="bijv. Bordeaux, Frankrijk">
-          </div>
-          <div class="field">
-            <label>Consumentenprijs</label>
-            <input type="text" id="f-prijs" placeholder="bijv. €25">
-          </div>
-        </div>
-        <div class="field">
-          <label>Gastronomie / Pairing</label>
-          <input type="text" id="f-gastro" placeholder="bijv. Lam, kaas">
-        </div>
-        <button class="scan-btn" onclick="switchScreen('scan')">📷 Of scan het etiket hier</button>
-      </div>
 
-      <!-- UITERLIJK -->
-      <div class="card">
-        <div class="section-title">Uiterlijk</div>
-        
-        <div class="field">
-          <label>Helderheid</label>
-          <div class="chip-group" id="chips-helderheid">
-            <button class="chip" onclick="toggleChip(this, 'helderheid')">Helder</button>
-            <button class="chip" onclick="toggleChip(this, 'helderheid')">Troebel</button>
+        <!-- WIJNINFO -->
+        <div class="card">
+          <div class="section-title">Wijninfo</div>
+          <div class="field">
+            <label>Naam wijn</label>
+            <input type="text" id="f-naam" placeholder="bijv. Château Margaux">
           </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="field">
+              <label>Oogstjaar</label>
+              <input type="text" id="f-jaar" placeholder="2021">
+            </div>
+            <div class="field">
+              <label>Druif / Druiven</label>
+              <input type="text" id="f-druif" placeholder="bijv. Merlot">
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="field">
+              <label>Land / Gebied</label>
+              <input type="text" id="f-regio" placeholder="bijv. Bordeaux">
+            </div>
+            <div class="field">
+              <label>Consumentenprijs</label>
+              <input type="text" id="f-prijs" placeholder="bijv. €25">
+            </div>
+          </div>
+          <div class="field">
+            <label>Gastronomie / Pairing</label>
+            <input type="text" id="f-gastro" placeholder="bijv. Lam, kaas">
+          </div>
+          <button class="scan-btn" onclick="switchScreen('scan')">📷 Of scan het etiket hier</button>
         </div>
 
-        <div class="field">
-          <label>Intensiteit</label>
-          <div class="chip-group" id="chips-intensiteit">
-            <button class="chip" onclick="toggleChip(this, 'intensiteit')">Licht</button>
-            <button class="chip" onclick="toggleChip(this, 'intensiteit')">Gemiddeld</button>
-            <button class="chip" onclick="toggleChip(this, 'intensiteit')">Diep</button>
-          </div>
-        </div>
+        <!-- UITERLIJK -->
+        <div class="card">
+          <div class="section-title">Uiterlijk</div>
 
-        <div class="field">
-          <label>Kleur</label>
-          
-          <div class="chip-group-section">
-            <div class="chip-group-section-label">Wit</div>
-            <div class="chip-group" id="chips-kleur">
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Groengeel</button>
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Citroengeel</button>
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Goudgeel</button>
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Ambergeel</button>
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Bruin</button>
+          <div class="field">
+            <label>Helderheid</label>
+            <div class="chip-group" id="chips-helderheid">
+              <button class="chip" onclick="toggleChip(this, 'helderheid')">Helder</button>
+              <button class="chip" onclick="toggleChip(this, 'helderheid')">Troebel</button>
             </div>
           </div>
 
-          <div class="chip-group-section">
-            <div class="chip-group-section-label">Rosé</div>
-            <div class="chip-group" id="chips-kleur">
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Roze</button>
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Oranjeroze</button>
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Oranje</button>
+          <div class="field">
+            <label>Intensiteit</label>
+            ${makeScale('intensiteit', ['Licht', 'Gemiddeld', 'Diep'])}
+          </div>
+
+          <div class="field">
+            <label>Kleur</label>
+            <div class="chip-group-section">
+              <div class="chip-group-section-label">Wit</div>
+              <div class="chip-group" id="chips-kleur">
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Groengeel</button>
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Citroengeel</button>
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Goudgeel</button>
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Ambergeel</button>
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Bruin</button>
+              </div>
+            </div>
+            <div class="chip-group-section">
+              <div class="chip-group-section-label">Rosé</div>
+              <div class="chip-group" id="chips-kleur">
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Roze</button>
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Oranjeroze</button>
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Oranje</button>
+              </div>
+            </div>
+            <div class="chip-group-section">
+              <div class="chip-group-section-label">Rood</div>
+              <div class="chip-group" id="chips-kleur">
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Paars</button>
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Robijnrood</button>
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Granaatrood</button>
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Bruinrood</button>
+                <button class="chip" onclick="toggleChip(this, 'kleur')">Bruin</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GEUR -->
+        <div class="card">
+          <div class="section-title">Geur</div>
+
+          <div class="field">
+            <label>Conditie</label>
+            <div class="chip-group" id="chips-conditie">
+              <button class="chip" onclick="toggleChip(this, 'conditie')">Zuiver</button>
+              <button class="chip" onclick="toggleChip(this, 'conditie')">Onzuiver</button>
             </div>
           </div>
 
-          <div class="chip-group-section">
-            <div class="chip-group-section-label">Rood</div>
-            <div class="chip-group" id="chips-kleur">
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Paars</button>
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Robijnrood</button>
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Granaatrood</button>
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Bruinrood</button>
-              <button class="chip" onclick="toggleChip(this, 'kleur')">Bruin</button>
+          <div class="field">
+            <label>Intensiteit</label>
+            ${makeScale('geur-int', ['Licht', 'Gemiddeld', 'Sterk'])}
+          </div>
+
+          <div class="field">
+            <label>Aromakenmerken (meerdere mogelijk)</label>
+            <div class="chip-group" id="chips-aroma">
+              <button class="chip" onclick="toggleChip(this, 'aroma')">Fruit</button>
+              <button class="chip" onclick="toggleChip(this, 'aroma')">Bloemen & kruiden</button>
+              <button class="chip" onclick="toggleChip(this, 'aroma')">Vegetaal & noten</button>
+              <button class="chip" onclick="toggleChip(this, 'aroma')">Dierlijk</button>
+              <button class="chip" onclick="toggleChip(this, 'aroma')">Hout & toast</button>
+              <button class="chip" onclick="toggleChip(this, 'aroma')">Aards & chemisch</button>
             </div>
           </div>
+
+          <div class="field">
+            <label>Notitie</label>
+            <textarea id="f-notitie-geur" placeholder="Beschrijf de geuren in detail..."></textarea>
+          </div>
         </div>
+
+        <!-- SMAAK -->
+        <div class="card">
+          <div class="section-title">Smaak</div>
+
+          <div class="field">
+            <label>Zoetheid</label>
+            ${makeScale('zoetheid', ['Droog', 'Iets zoet', 'Halfzoet', 'Zoet'])}
+          </div>
+
+          <div class="field">
+            <label>Zuur</label>
+            ${makeScale('zuur', ['Laag', 'Gemiddeld', 'Hoog'])}
+          </div>
+
+          <div class="field">
+            <label>Tannine</label>
+            ${makeScale('tannine', ['Geen', 'Laag', 'Gemiddeld', 'Hoog'])}
+          </div>
+
+          <div class="field">
+            <label>Body</label>
+            ${makeScale('body', ['Licht', 'Gemiddeld', 'Vol'])}
+          </div>
+
+          <div class="field">
+            <label>Smaakintensiteit</label>
+            ${makeScale('smaak-int', ['Licht', 'Gemiddeld', 'Sterk'])}
+          </div>
+
+          <div class="field">
+            <label>Smaakkenmerken (meerdere mogelijk)</label>
+            <div class="chip-group" id="chips-smaak">
+              <button class="chip" onclick="toggleChip(this, 'smaak')">Fruit</button>
+              <button class="chip" onclick="toggleChip(this, 'smaak')">Bloemen & kruiden</button>
+              <button class="chip" onclick="toggleChip(this, 'smaak')">Vegetaal & noten</button>
+              <button class="chip" onclick="toggleChip(this, 'smaak')">Dierlijk</button>
+              <button class="chip" onclick="toggleChip(this, 'smaak')">Hout & toast</button>
+              <button class="chip" onclick="toggleChip(this, 'smaak')">Aards & chemisch</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Afdronk</label>
+            ${makeScale('afdronk', ['Kort', 'Gemiddeld', 'Lang'])}
+          </div>
+
+          <div class="field">
+            <label>Notitie</label>
+            <textarea id="f-notitie-smaak" placeholder="Beschrijf de smaken en afwerking in detail..."></textarea>
+          </div>
+        </div>
+
+        <!-- CONCLUSIE -->
+        <div class="card">
+          <div class="section-title">Conclusie</div>
+
+          <div class="field">
+            <label>Kwaliteit</label>
+            ${makeScale('kwaliteit', ['Slecht', 'Redelijk', 'Goed', 'Heel goed', 'Voortreffelijk'])}
+          </div>
+
+          <div class="field" style="margin-top: 24px;">
+            <label style="text-align: center; display: block; margin-bottom: 16px; font-size: 15px;">Was het lekker?</label>
+            ${makeWineRating()}
+          </div>
+        </div>
+
+        <button class="button" onclick="saveWine()" style="width: 100%;">${isEditing ? 'Wijzigingen opslaan' : 'Opslaan'}</button>
+        <button class="button" onclick="switchScreen('lijst')" style="width: 100%; margin-top: 0.5rem;">Annuleren</button>
       </div>
-
-      <!-- GEUR -->
-      <div class="card">
-        <div class="section-title">Geur</div>
-        
-        <div class="field">
-          <label>Conditie</label>
-          <div class="chip-group" id="chips-conditie">
-            <button class="chip" onclick="toggleChip(this, 'conditie')">Zuiver</button>
-            <button class="chip" onclick="toggleChip(this, 'conditie')">Onzuiver</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Intensiteit</label>
-          <div class="chip-group" id="chips-geur-int">
-            <button class="chip" onclick="toggleChip(this, 'geur-int')">Licht</button>
-            <button class="chip" onclick="toggleChip(this, 'geur-int')">Gemiddeld</button>
-            <button class="chip" onclick="toggleChip(this, 'geur-int')">Sterk</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Aromakenmerken (meerdere mogelijk)</label>
-          <div class="chip-group" id="chips-aroma">
-            <button class="chip" onclick="toggleChip(this, 'aroma')">Fruit</button>
-            <button class="chip" onclick="toggleChip(this, 'aroma')">Bloemen & kruiden</button>
-            <button class="chip" onclick="toggleChip(this, 'aroma')">Vegetaal & noten</button>
-            <button class="chip" onclick="toggleChip(this, 'aroma')">Dierlijk</button>
-            <button class="chip" onclick="toggleChip(this, 'aroma')">Hout & toast</button>
-            <button class="chip" onclick="toggleChip(this, 'aroma')">Aards & chemisch</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Notitie</label>
-          <textarea id="f-notitie-geur" placeholder="Beschrijf de geuren in detail..."></textarea>
-        </div>
-      </div>
-
-      <!-- SMAAK -->
-      <div class="card">
-        <div class="section-title">Smaak</div>
-        
-        <div class="field">
-          <label>Zoetheid</label>
-          <div class="chip-group" id="chips-zoetheid">
-            <button class="chip" onclick="toggleChip(this, 'zoetheid')">Droog</button>
-            <button class="chip" onclick="toggleChip(this, 'zoetheid')">Iets zoet</button>
-            <button class="chip" onclick="toggleChip(this, 'zoetheid')">Halfzoet</button>
-            <button class="chip" onclick="toggleChip(this, 'zoetheid')">Zoet</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Zuur</label>
-          <div class="chip-group" id="chips-zuur">
-            <button class="chip" onclick="toggleChip(this, 'zuur')">Laag</button>
-            <button class="chip" onclick="toggleChip(this, 'zuur')">Gemiddeld</button>
-            <button class="chip" onclick="toggleChip(this, 'zuur')">Hoog</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Tannine</label>
-          <div class="chip-group" id="chips-tannine">
-            <button class="chip" onclick="toggleChip(this, 'tannine')">Geen</button>
-            <button class="chip" onclick="toggleChip(this, 'tannine')">Laag</button>
-            <button class="chip" onclick="toggleChip(this, 'tannine')">Gemiddeld</button>
-            <button class="chip" onclick="toggleChip(this, 'tannine')">Hoog</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Body</label>
-          <div class="chip-group" id="chips-body">
-            <button class="chip" onclick="toggleChip(this, 'body')">Licht</button>
-            <button class="chip" onclick="toggleChip(this, 'body')">Gemiddeld</button>
-            <button class="chip" onclick="toggleChip(this, 'body')">Vol</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Smaakintensiteit</label>
-          <div class="chip-group" id="chips-smaak-int">
-            <button class="chip" onclick="toggleChip(this, 'smaak-int')">Licht</button>
-            <button class="chip" onclick="toggleChip(this, 'smaak-int')">Gemiddeld</button>
-            <button class="chip" onclick="toggleChip(this, 'smaak-int')">Sterk</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Smaakkenmerken (meerdere mogelijk)</label>
-          <div class="chip-group" id="chips-smaak">
-            <button class="chip" onclick="toggleChip(this, 'smaak')">Fruit</button>
-            <button class="chip" onclick="toggleChip(this, 'smaak')">Bloemen & kruiden</button>
-            <button class="chip" onclick="toggleChip(this, 'smaak')">Vegetaal & noten</button>
-            <button class="chip" onclick="toggleChip(this, 'smaak')">Dierlijk</button>
-            <button class="chip" onclick="toggleChip(this, 'smaak')">Hout & toast</button>
-            <button class="chip" onclick="toggleChip(this, 'smaak')">Aards & chemisch</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Afdronk</label>
-          <div class="chip-group" id="chips-afdronk">
-            <button class="chip" onclick="toggleChip(this, 'afdronk')">Kort</button>
-            <button class="chip" onclick="toggleChip(this, 'afdronk')">Gemiddeld</button>
-            <button class="chip" onclick="toggleChip(this, 'afdronk')">Lang</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Notitie</label>
-          <textarea id="f-notitie-smaak" placeholder="Beschrijf de smaken en afwerking in detail..."></textarea>
-        </div>
-      </div>
-
-      <!-- CONCLUSIE -->
-      <div class="card">
-        <div class="section-title">Conclusie</div>
-        
-        <div class="field">
-          <label>Kwaliteit</label>
-          <div class="chip-group" id="chips-kwaliteit">
-            <button class="chip" onclick="toggleChip(this, 'kwaliteit')">Slecht</button>
-            <button class="chip" onclick="toggleChip(this, 'kwaliteit')">Redelijk</button>
-            <button class="chip" onclick="toggleChip(this, 'kwaliteit')">Goed</button>
-            <button class="chip" onclick="toggleChip(this, 'kwaliteit')">Heel goed</button>
-            <button class="chip" onclick="toggleChip(this, 'kwaliteit')">Voortreffelijk</button>
-          </div>
-        </div>
-      </div>
-
-      <button class="button" onclick="saveWine()" style="width: 100%;">${isEditing ? 'Wijzigingen opslaan' : 'Opslaan'}</button>
-      <button class="button" onclick="switchScreen('lijst')" style="width: 100%; margin-top: 0.5rem;">Annuleren</button>
-    </div>
     </div>
   `;
 
@@ -1177,6 +1157,30 @@ function getChips(group) {
   return Array.isArray(v) ? v.join(', ') : v
 }
 
+function selectScale(el, group, value) {
+  const nodes = [...document.querySelectorAll(`#scale-${group} .scale-node`)]
+  const idx = nodes.indexOf(el)
+  nodes.forEach((n, i) => {
+    n.classList.remove('filled', 'selected')
+    if (i < idx) n.classList.add('filled')
+    if (i === idx) n.classList.add('selected')
+  })
+  chipState[group] = value
+}
+
+function selectScaleByValue(group, value) {
+  const nodes = [...document.querySelectorAll(`#scale-${group} .scale-node`)]
+  const idx = nodes.findIndex(n => n.querySelector('.scale-label')?.textContent.trim() === value)
+  if (idx !== -1) selectScale(nodes[idx], group, value)
+}
+
+function setWineRating(value) {
+  chipState['lekker_rating'] = value
+  document.querySelectorAll('.wineglass-item').forEach((el, i) => {
+    el.classList.toggle('active', i < value)
+  })
+}
+
 async function saveWine() {
   const userId = await getCurrentUserId()
   
@@ -1224,6 +1228,7 @@ async function saveWine() {
       afdronk: getChips('afdronk'),
       notitie_smaak: document.getElementById('f-notitie-smaak').value.trim(),
       kwaliteit: getChips('kwaliteit'),
+      lekker_rating: chipState['lekker_rating'] || null,
       updated_at: new Date().toISOString()
     }
     
@@ -1277,6 +1282,7 @@ async function saveWine() {
       afdronk: getChips('afdronk'),
       notitie_smaak: document.getElementById('f-notitie-smaak').value.trim(),
       kwaliteit: getChips('kwaliteit'),
+      lekker_rating: chipState['lekker_rating'] || null,
       user_id: currentUserId,
       ai_score: null,
       ai_score_date: null,
@@ -1521,5 +1527,7 @@ window.handleSignup = handleSignup
 window.showMyWines = showMyWines
 window.showChangePassword = showChangePassword
 window.handleChangePasswordSubmit = handleChangePasswordSubmit
+window.selectScale = selectScale
+window.setWineRating = setWineRating
 window.showLeaderboard = showLeaderboard
 window.handleLogout = handleLogout
