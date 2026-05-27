@@ -21,29 +21,155 @@ function getCurrentUserId() {
 function showLoginScreen() {
   const app = document.getElementById('app')
   app.innerHTML = `
-    <div class="app" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh;">
-      <div style="width: 100%; max-width: 300px;">
-        <h1 style="text-align: center; margin-bottom: 2rem;">WSET App</h1>
-        
-        <div class="card">
-          <div class="field">
-            <label>Username</label>
-            <input type="text" id="login-username" placeholder="bijv. imre" style="width: 100%;">
+    <div style="display: flex; min-height: 100vh; background: linear-gradient(90deg, #FFE6E6 0%, #FFE6E6 50%, #FF9999 50%, #FF9999 100%); margin: 0; padding: 0;">
+      
+      <!-- Links: Form -->
+      <div style="width: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 60px; position: relative;">
+        <div style="text-align: center; width: 100%;">
+          <h1 style="margin: 0 0 0 0; font-size: 120px; font-weight: bold; color: var(--color-accent-yellow); text-shadow: 6px 6px 0px #8B4513; letter-spacing: 8px;">WSET</h1>
+          <div style="font-family: var(--font-family-heading); font-size: 36px; font-weight: bold; color: var(--color-accent-yellow); text-shadow: 4px 4px 0px #8B4513; letter-spacing: 4px; margin-bottom: 60px;">PROEFMETHODE</div>
+          
+          <input type="text" id="login-username" placeholder="Username" style="width: 100%; padding: 18px 20px; margin-bottom: 16px; border: 3px solid #D67A7A; border-radius: 8px; background: rgba(255, 153, 153, 0.6); color: white; font-size: 18px; font-family: var(--font-family-main); font-weight: 500;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+          
+          <input type="password" id="login-password" placeholder="Wachtwoord" style="width: 100%; padding: 18px 20px; margin-bottom: 12px; border: 3px solid #D67A7A; border-radius: 8px; background: rgba(255, 153, 153, 0.6); color: white; font-size: 18px; font-family: var(--font-family-main); font-weight: 500;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+          
+          <style>
+            #login-username::placeholder, #login-password::placeholder {
+              color: white !important;
+              opacity: 0.9;
+            }
+          </style>
+          
+          <div style="text-align: right; margin-bottom: 40px; font-size: 16px;">
+            <a onclick="alert('Coming soon')" style="color: var(--color-primary-pink); cursor: pointer; text-decoration: none; font-weight: 600;">Wachtwoord vergeten?</a>
           </div>
           
-          <div class="field">
-            <label>Wachtwoord</label>
-            <input type="password" id="login-password" placeholder="girlie" style="width: 100%;">
-          </div>
+          <button onclick="handleLogin()" style="width: 100%; padding: 20px; background: white; color: var(--color-primary-pink); border: 3px solid var(--color-primary-pink); border-radius: 8px; font-size: 20px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;">Login</button>
           
-          <button class="button" onclick="handleLogin()" style="width: 100%; margin-bottom: 0.5rem;">Login</button>
-          <button class="button" onclick="showSignupScreen()" style="width: 100%; background: #e8f5e9; color: #2e7d32;">Nieuw account</button>
+          <div style="text-align: center; margin-top: 24px; font-size: 16px; color: var(--color-text-dark);">
+            Of <a onclick="showSignupScreen()" style="color: var(--color-primary-pink); cursor: pointer; text-decoration: none; font-weight: 600;">maak hier een account aan</a>
+          </div>
         </div>
+      </div>
+      
+      <!-- Rechts: Wine Glasses Logo -->
+      <div style="width: 50%; display: flex; justify-content: center; align-items: center; padding: 60px;">
+        <svg viewBox="0 0 300 350" xmlns="http://www.w3.org/2000/svg" style="width: 100%; max-width: 350px; height: auto;">
+          <!-- Champagne Flute (left) -->
+          <g>
+            <path d="M 40 80 L 35 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 70 80 L 75 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 35 160 Q 30 175 40 185" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M 75 160 Q 80 175 70 185" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M 40 80 Q 55 70 70 80" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <line x1="55" y1="185" x2="55" y2="260" stroke="white" stroke-width="4" stroke-linecap="round"/>
+            <ellipse cx="55" cy="275" rx="22" ry="8" stroke="white" stroke-width="4" fill="none"/>
+          </g>
+          
+          <!-- Wine Glass (middle) -->
+          <g>
+            <path d="M 110 60 L 100 180" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 170 60 L 180 180" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 100 180 Q 90 200 120 210" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M 180 180 Q 190 200 160 210" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M 110 60 Q 140 45 170 60" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <line x1="140" y1="210" x2="140" y2="280" stroke="white" stroke-width="4" stroke-linecap="round"/>
+            <ellipse cx="140" cy="295" rx="26" ry="9" stroke="white" stroke-width="4" fill="none"/>
+          </g>
+          
+          <!-- Wine Bottle (right) -->
+          <g>
+            <ellipse cx="240" cy="45" rx="15" ry="10" stroke="white" stroke-width="4" fill="none"/>
+            <path d="M 230 55 L 225 100" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 250 55 L 255 100" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 225 100 Q 210 130 205 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 255 100 Q 270 130 275 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 205 160 L 200 280" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 275 160 L 280 280" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 200 280 Q 195 305 240 320" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M 280 280 Q 285 305 240 320" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <ellipse cx="240" cy="320" rx="18" ry="6" stroke="white" stroke-width="4" fill="none"/>
+          </g>
+        </svg>
       </div>
     </div>
   `
   
   document.getElementById('login-username').focus()
+}
+
+function showSignupScreen() {
+  const app = document.getElementById('app')
+  app.innerHTML = `
+    <div style="display: flex; min-height: 100vh; background: linear-gradient(90deg, #FFE6E6 0%, #FFE6E6 50%, #FF9999 50%, #FF9999 100%); margin: 0; padding: 0;">
+      
+      <!-- Links: Form -->
+      <div style="width: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 60px; position: relative;">
+        <div style="text-align: center; width: 100%;">
+          <h1 style="margin: 0 0 0 0; font-size: 120px; font-weight: bold; color: var(--color-accent-yellow); text-shadow: 6px 6px 0px #8B4513; letter-spacing: 8px;">WSET</h1>
+          <div style="font-family: var(--font-family-heading); font-size: 36px; font-weight: bold; color: var(--color-accent-yellow); text-shadow: 4px 4px 0px #8B4513; letter-spacing: 4px; margin-bottom: 60px;">PROEFMETHODE</div>
+          
+          <input type="text" id="signup-username" placeholder="Kies je username" style="width: 100%; padding: 18px 20px; margin-bottom: 40px; border: 3px solid #D67A7A; border-radius: 8px; background: rgba(255, 153, 153, 0.6); color: white; font-size: 18px; font-family: var(--font-family-main); font-weight: 500;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+          
+          <style>
+            #signup-username::placeholder {
+              color: white !important;
+              opacity: 0.9;
+            }
+          </style>
+          
+          <button onclick="handleSignup()" style="width: 100%; padding: 20px; background: white; color: var(--color-primary-pink); border: 3px solid var(--color-primary-pink); border-radius: 8px; font-size: 20px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;">Account maken</button>
+          
+          <div style="text-align: center; margin-top: 24px; font-size: 16px; color: var(--color-text-dark);">
+            <a onclick="showLoginScreen()" style="color: var(--color-primary-pink); cursor: pointer; text-decoration: none; font-weight: 600;">Terug naar login</a>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Rechts: Wine Glasses Logo -->
+      <div style="width: 50%; display: flex; justify-content: center; align-items: center; padding: 60px;">
+        <svg viewBox="0 0 300 350" xmlns="http://www.w3.org/2000/svg" style="width: 100%; max-width: 350px; height: auto;">
+          <!-- Champagne Flute (left) -->
+          <g>
+            <path d="M 40 80 L 35 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 70 80 L 75 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 35 160 Q 30 175 40 185" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M 75 160 Q 80 175 70 185" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M 40 80 Q 55 70 70 80" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <line x1="55" y1="185" x2="55" y2="260" stroke="white" stroke-width="4" stroke-linecap="round"/>
+            <ellipse cx="55" cy="275" rx="22" ry="8" stroke="white" stroke-width="4" fill="none"/>
+          </g>
+          
+          <!-- Wine Glass (middle) -->
+          <g>
+            <path d="M 110 60 L 100 180" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 170 60 L 180 180" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 100 180 Q 90 200 120 210" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M 180 180 Q 190 200 160 210" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M 110 60 Q 140 45 170 60" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <line x1="140" y1="210" x2="140" y2="280" stroke="white" stroke-width="4" stroke-linecap="round"/>
+            <ellipse cx="140" cy="295" rx="26" ry="9" stroke="white" stroke-width="4" fill="none"/>
+          </g>
+          
+          <!-- Wine Bottle (right) -->
+          <g>
+            <ellipse cx="240" cy="45" rx="15" ry="10" stroke="white" stroke-width="4" fill="none"/>
+            <path d="M 230 55 L 225 100" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 250 55 L 255 100" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 225 100 Q 210 130 205 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 255 100 Q 270 130 275 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 205 160 L 200 280" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 275 160 L 280 280" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 200 280 Q 195 305 240 320" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M 280 280 Q 285 305 240 320" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <ellipse cx="240" cy="320" rx="18" ry="6" stroke="white" stroke-width="4" fill="none"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+  `
+  
+  document.getElementById('signup-username').focus()
 }
 
 async function handleLogin() {
@@ -83,29 +209,6 @@ async function handleLogin() {
   currentUserId = user.id
   isLoggedIn = true
   render()
-}
-
-function showSignupScreen() {
-  const app = document.getElementById('app')
-  app.innerHTML = `
-    <div class="app" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh;">
-      <div style="width: 100%; max-width: 300px;">
-        <h1 style="text-align: center; margin-bottom: 2rem;">Nieuw Account</h1>
-        
-        <div class="card">
-          <div class="field">
-            <label>Username</label>
-            <input type="text" id="signup-username" placeholder="kies je username" style="width: 100%;">
-          </div>
-          
-          <button class="button" onclick="handleSignup()" style="width: 100%; margin-bottom: 0.5rem;">Account maken</button>
-          <button class="button" onclick="showLoginScreen()" style="width: 100%; background: #f5f5f5;">Terug</button>
-        </div>
-      </div>
-    </div>
-  `
-  
-  document.getElementById('signup-username').focus()
 }
 
 async function handleSignup() {
@@ -260,6 +363,71 @@ function showMyWines() {
       </div>
     `).join('')
   }
+}
+
+function showLeaderboard() {
+  const app = document.getElementById('app')
+  
+  // Get all unique users with scores
+  const userScores = {}
+  wines.forEach(wine => {
+    if (wine.user_id) {
+      if (!userScores[wine.user_id]) {
+        userScores[wine.user_id] = { scores: [], count: 0 }
+      }
+      userScores[wine.user_id].count++
+      if (wine.ai_score) {
+        userScores[wine.user_id].scores.push(wine.ai_score)
+      }
+    }
+  })
+  
+  // Calculate averages and sort
+  const leaderboard = Object.entries(userScores).map(([userId, data]) => {
+    const avgScore = data.scores.length > 0 
+      ? (data.scores.reduce((a, b) => a + b, 0) / data.scores.length).toFixed(1)
+      : 0
+    return { userId, avgScore: parseFloat(avgScore), scoredCount: data.scores.length, totalCount: data.count }
+  }).sort((a, b) => b.avgScore - a.avgScore)
+  
+  app.innerHTML = `
+    <div class="app">
+      <button class="button" onclick="switchScreen('lijst')" style="margin-bottom: 1rem;">← Terug naar wijnen</button>
+      
+      <h1 style="text-align: center; color: #FFD700; text-shadow: 2px 2px 0px #FF9999; margin-bottom: 2rem;">LEADERBOARD</h1>
+      
+      <div class="wine-list" id="leaderboard-list"></div>
+    </div>
+  `
+  
+  const list = document.getElementById('leaderboard-list')
+  if (leaderboard.length === 0) {
+    list.innerHTML = '<div class="empty-state">Nog geen scores</div>'
+    return
+  }
+  
+  list.innerHTML = leaderboard.map((entry, idx) => {
+    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`
+    const isMe = entry.userId === currentUserId
+    
+    return `
+      <div class="wine-card" style="border-left: 4px solid ${isMe ? '#FFD700' : '#CCC'};">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="font-size: 24px;">${medal}</div>
+            <div>
+              <div style="font-weight: 500; font-size: 16px;">${isMe ? 'Jij' : 'Gebruiker ' + entry.userId.substring(0, 8)}</div>
+              <div style="font-size: 12px; color: #999; margin-top: 2px;">${entry.scoredCount}/${entry.totalCount} wijnen beoordeeld</div>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 28px; font-weight: bold; color: #FFD700;">${entry.avgScore}</div>
+            <div style="font-size: 11px; color: #666;">gemiddeld</div>
+          </div>
+        </div>
+      </div>
+    `
+  }).join('')
 }
 
 function filterAndSearch() {
@@ -1149,3 +1317,4 @@ window.editWine = editWine
 window.showSignupScreen = showSignupScreen
 window.handleSignup = handleSignup
 window.showMyWines = showMyWines
+window.showLeaderboard = showLeaderboard
