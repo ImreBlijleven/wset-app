@@ -55,40 +55,37 @@ function showLoginScreen() {
       <!-- Rechts: Wine Glasses Logo -->
       <div style="width: 50%; display: flex; justify-content: center; align-items: center; padding: 60px;">
         <svg viewBox="0 0 300 350" xmlns="http://www.w3.org/2000/svg" style="width: 100%; max-width: 350px; height: auto;">
-          <!-- Champagne Flute (left) -->
+          <!-- Champagne Flute: taper from wide top to narrow bottom -->
           <g>
-            <path d="M 40 80 L 35 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <path d="M 70 80 L 75 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <path d="M 35 160 Q 30 175 40 185" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M 75 160 Q 80 175 70 185" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M 40 80 Q 55 70 70 80" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <line x1="55" y1="185" x2="55" y2="260" stroke="white" stroke-width="4" stroke-linecap="round"/>
-            <ellipse cx="55" cy="275" rx="22" ry="8" stroke="white" stroke-width="4" fill="none"/>
+            <path d="M 39 62 C 41 110 44 155 47 186" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 71 62 C 69 110 66 155 63 186" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 47 186 Q 55 196 63 186" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 39 62 Q 55 54 71 62" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <line x1="55" y1="196" x2="55" y2="264" stroke="white" stroke-width="4" stroke-linecap="round"/>
+            <ellipse cx="55" cy="272" rx="22" ry="7" stroke="white" stroke-width="4" fill="none"/>
           </g>
-          
-          <!-- Wine Glass (middle) -->
+
+          <!-- Wine Glass: tulip bowl with outward belly -->
           <g>
-            <path d="M 110 60 L 100 180" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <path d="M 170 60 L 180 180" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <path d="M 100 180 Q 90 200 120 210" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M 180 180 Q 190 200 160 210" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M 110 60 Q 140 45 170 60" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <line x1="140" y1="210" x2="140" y2="280" stroke="white" stroke-width="4" stroke-linecap="round"/>
-            <ellipse cx="140" cy="295" rx="26" ry="9" stroke="white" stroke-width="4" fill="none"/>
+            <path d="M 109 62 C 94 110 96 165 128 200" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 171 62 C 186 110 184 165 152 200" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 128 200 Q 140 212 152 200" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 109 62 Q 140 52 171 62" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <line x1="140" y1="212" x2="140" y2="278" stroke="white" stroke-width="4" stroke-linecap="round"/>
+            <ellipse cx="140" cy="286" rx="26" ry="9" stroke="white" stroke-width="4" fill="none"/>
           </g>
-          
-          <!-- Wine Bottle (right) -->
+
+          <!-- Wine Bottle: capsule, narrow neck, curved shoulders, straight body -->
           <g>
-            <ellipse cx="240" cy="45" rx="15" ry="10" stroke="white" stroke-width="4" fill="none"/>
-            <path d="M 230 55 L 225 100" stroke="white" stroke-width="5" stroke-linecap="round"/>
-            <path d="M 250 55 L 255 100" stroke="white" stroke-width="5" stroke-linecap="round"/>
-            <path d="M 225 100 Q 210 130 205 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <path d="M 255 100 Q 270 130 275 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <path d="M 205 160 L 200 280" stroke="white" stroke-width="5" stroke-linecap="round"/>
-            <path d="M 275 160 L 280 280" stroke="white" stroke-width="5" stroke-linecap="round"/>
-            <path d="M 200 280 Q 195 305 240 320" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M 280 280 Q 285 305 240 320" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <ellipse cx="240" cy="320" rx="18" ry="6" stroke="white" stroke-width="4" fill="none"/>
+            <path d="M 233 38 L 233 22 Q 240 14 247 22 L 247 38" stroke="white" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="232" y1="38" x2="248" y2="38" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
+            <line x1="233" y1="38" x2="233" y2="92" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <line x1="247" y1="38" x2="247" y2="92" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 233 92 C 228 100 218 112 218 124" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 247 92 C 252 100 262 112 262 124" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <line x1="218" y1="124" x2="218" y2="304" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <line x1="262" y1="124" x2="262" y2="304" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 218 304 Q 240 316 262 304" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
           </g>
         </svg>
       </div>
@@ -129,40 +126,37 @@ function showSignupScreen() {
       <!-- Rechts: Wine Glasses Logo -->
       <div style="width: 50%; display: flex; justify-content: center; align-items: center; padding: 60px;">
         <svg viewBox="0 0 300 350" xmlns="http://www.w3.org/2000/svg" style="width: 100%; max-width: 350px; height: auto;">
-          <!-- Champagne Flute (left) -->
+          <!-- Champagne Flute: taper from wide top to narrow bottom -->
           <g>
-            <path d="M 40 80 L 35 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <path d="M 70 80 L 75 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <path d="M 35 160 Q 30 175 40 185" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M 75 160 Q 80 175 70 185" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M 40 80 Q 55 70 70 80" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <line x1="55" y1="185" x2="55" y2="260" stroke="white" stroke-width="4" stroke-linecap="round"/>
-            <ellipse cx="55" cy="275" rx="22" ry="8" stroke="white" stroke-width="4" fill="none"/>
+            <path d="M 39 62 C 41 110 44 155 47 186" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 71 62 C 69 110 66 155 63 186" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 47 186 Q 55 196 63 186" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 39 62 Q 55 54 71 62" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <line x1="55" y1="196" x2="55" y2="264" stroke="white" stroke-width="4" stroke-linecap="round"/>
+            <ellipse cx="55" cy="272" rx="22" ry="7" stroke="white" stroke-width="4" fill="none"/>
           </g>
-          
-          <!-- Wine Glass (middle) -->
+
+          <!-- Wine Glass: tulip bowl with outward belly -->
           <g>
-            <path d="M 110 60 L 100 180" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <path d="M 170 60 L 180 180" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <path d="M 100 180 Q 90 200 120 210" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M 180 180 Q 190 200 160 210" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M 110 60 Q 140 45 170 60" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <line x1="140" y1="210" x2="140" y2="280" stroke="white" stroke-width="4" stroke-linecap="round"/>
-            <ellipse cx="140" cy="295" rx="26" ry="9" stroke="white" stroke-width="4" fill="none"/>
+            <path d="M 109 62 C 94 110 96 165 128 200" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 171 62 C 186 110 184 165 152 200" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 128 200 Q 140 212 152 200" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 109 62 Q 140 52 171 62" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <line x1="140" y1="212" x2="140" y2="278" stroke="white" stroke-width="4" stroke-linecap="round"/>
+            <ellipse cx="140" cy="286" rx="26" ry="9" stroke="white" stroke-width="4" fill="none"/>
           </g>
-          
-          <!-- Wine Bottle (right) -->
+
+          <!-- Wine Bottle: capsule, narrow neck, curved shoulders, straight body -->
           <g>
-            <ellipse cx="240" cy="45" rx="15" ry="10" stroke="white" stroke-width="4" fill="none"/>
-            <path d="M 230 55 L 225 100" stroke="white" stroke-width="5" stroke-linecap="round"/>
-            <path d="M 250 55 L 255 100" stroke="white" stroke-width="5" stroke-linecap="round"/>
-            <path d="M 225 100 Q 210 130 205 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <path d="M 255 100 Q 270 130 275 160" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
-            <path d="M 205 160 L 200 280" stroke="white" stroke-width="5" stroke-linecap="round"/>
-            <path d="M 275 160 L 280 280" stroke="white" stroke-width="5" stroke-linecap="round"/>
-            <path d="M 200 280 Q 195 305 240 320" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M 280 280 Q 285 305 240 320" stroke="white" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <ellipse cx="240" cy="320" rx="18" ry="6" stroke="white" stroke-width="4" fill="none"/>
+            <path d="M 233 38 L 233 22 Q 240 14 247 22 L 247 38" stroke="white" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="232" y1="38" x2="248" y2="38" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
+            <line x1="233" y1="38" x2="233" y2="92" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <line x1="247" y1="38" x2="247" y2="92" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 233 92 C 228 100 218 112 218 124" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 247 92 C 252 100 262 112 262 124" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <line x1="218" y1="124" x2="218" y2="304" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <line x1="262" y1="124" x2="262" y2="304" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 218 304 Q 240 316 262 304" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
           </g>
         </svg>
       </div>
@@ -288,23 +282,36 @@ function render() {
 
 function renderList(container) {
   container.innerHTML = `
-    <div class="app">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <h1>Alle wijnen</h1>
-        <div style="display: flex; gap: 8px;">
-          <button class="button" onclick="switchScreen('nieuw')" style="font-size: 14px; padding: 8px 12px;">+ Nieuwe notitie</button>
-          <button class="button" onclick="showMyWines()" style="font-size: 14px; padding: 8px 12px;">👤 Mijn wijnen</button>
-        </div>
+    <div class="app-outer">
+      <div class="app-card">
+        <h1 class="page-hero-title">Wijncatalogus</h1>
+
+        <input type="text" id="search" class="search-input" placeholder="Zoek op naam, druif, regio..." oninput="filterAndSearch()">
+
+        <div id="filters" class="filter-chips-wrap"></div>
+
+        <div class="wine-list" id="wine-list"></div>
+
+        <div class="logout-link" onclick="handleLogout()">Uitloggen</div>
       </div>
-      
-      <input type="text" id="search" placeholder="Zoek op naam, druif, regio..." style="width: 100%; margin-bottom: 1rem; padding: 8px; border: 0.5px solid var(--color-border); border-radius: 4px;" oninput="filterAndSearch()">
-      
-      <div id="filters" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem;"></div>
-      
-      <div class="wine-list" id="wine-list"></div>
+
+      <nav class="bottom-nav">
+        <button class="bottom-nav-item" onclick="showLeaderboard()">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M7 7c0 4 2 7 5 8 3-1 5-4 5-8M12 15v5M9 20h6"/></svg>
+          <span class="bottom-nav-label">Leaderboard</span>
+        </button>
+        <button class="bottom-nav-item" onclick="switchScreen('nieuw')">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span class="bottom-nav-label">Nieuwe Notitie</span>
+        </button>
+        <button class="bottom-nav-item" onclick="showMyWines()">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="bottom-nav-label">Mijn Profiel</span>
+        </button>
+      </nav>
     </div>
   `
-  
+
   renderFiltersAndList()
 }
 
@@ -336,29 +343,33 @@ function renderFiltersAndList() {
 
 function showMyWines() {
   const myWines = wines.filter(w => w.user_id === currentUserId)
-  
+
   const app = document.getElementById('app')
   app.innerHTML = `
-    <div class="app">
-      <button class="button" onclick="switchScreen('lijst')" style="margin-bottom: 1rem;">← Terug naar alle wijnen</button>
-      
-      <h2>Mijn wijnen</h2>
-      <div class="wine-list" id="my-wines"></div>
+    <div class="app-outer">
+      <div class="app-card">
+        <button class="back-link" onclick="switchScreen('lijst')">← Terug naar overzicht</button>
+
+        <h1 class="page-hero-title">Mijn wijnen</h1>
+
+        <div class="wine-list" id="my-wines"></div>
+      </div>
     </div>
   `
-  
+
   const list = document.getElementById('my-wines')
   if (myWines.length === 0) {
     list.innerHTML = '<div class="empty-state">Je hebt nog geen wijnen geproefd</div>'
   } else {
     list.innerHTML = myWines.map(w => `
       <div class="wine-card" onclick="showWineGroupDetail('${w.wine_id}')">
-        <div style="font-weight: 500;">${w.naam}</div>
-        <div style="font-size: 12px; color: #666;">
-          ${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}
-        </div>
-        <div style="font-size: 11px; color: #999; margin-top: 4px;">
-          ${w.created_at ? new Date(w.created_at).toLocaleDateString('nl-NL') : ''}
+        <div class="flex-between">
+          <div>
+            <div class="wine-card-title">${w.naam}</div>
+            <div class="wine-card-meta">${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}</div>
+            ${w.created_at ? `<div class="wine-card-meta">${new Date(w.created_at).toLocaleDateString('nl-NL')}</div>` : ''}
+          </div>
+          <div class="wine-chevron">›</div>
         </div>
       </div>
     `).join('')
@@ -391,38 +402,40 @@ function showLeaderboard() {
   }).sort((a, b) => b.avgScore - a.avgScore)
   
   app.innerHTML = `
-    <div class="app">
-      <button class="button" onclick="switchScreen('lijst')" style="margin-bottom: 1rem;">← Terug naar wijnen</button>
-      
-      <h1 style="text-align: center; color: #FFD700; text-shadow: 2px 2px 0px #FF9999; margin-bottom: 2rem;">LEADERBOARD</h1>
-      
-      <div class="wine-list" id="leaderboard-list"></div>
+    <div class="app-outer">
+      <div class="app-card">
+        <button class="back-link" onclick="switchScreen('lijst')">← Terug naar overzicht</button>
+
+        <h1 class="page-hero-title">Leaderboard</h1>
+
+        <div class="wine-list" id="leaderboard-list"></div>
+      </div>
     </div>
   `
-  
+
   const list = document.getElementById('leaderboard-list')
   if (leaderboard.length === 0) {
     list.innerHTML = '<div class="empty-state">Nog geen scores</div>'
     return
   }
-  
+
   list.innerHTML = leaderboard.map((entry, idx) => {
     const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`
     const isMe = entry.userId === currentUserId
-    
+
     return `
-      <div class="wine-card" style="border-left: 4px solid ${isMe ? '#FFD700' : '#CCC'};">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; align-items: center; gap: 1rem;">
-            <div style="font-size: 24px;">${medal}</div>
+      <div class="wine-card" style="border-left: 4px solid ${isMe ? '#FFD700' : 'var(--color-border)'};">
+        <div class="flex-between">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 26px;">${medal}</div>
             <div>
-              <div style="font-weight: 500; font-size: 16px;">${isMe ? 'Jij' : 'Gebruiker ' + entry.userId.substring(0, 8)}</div>
-              <div style="font-size: 12px; color: #999; margin-top: 2px;">${entry.scoredCount}/${entry.totalCount} wijnen beoordeeld</div>
+              <div class="wine-card-title">${isMe ? 'Jij' : 'Gebruiker ' + entry.userId.substring(0, 8)}</div>
+              <div class="wine-card-meta">${entry.scoredCount}/${entry.totalCount} wijnen beoordeeld</div>
             </div>
           </div>
           <div style="text-align: right;">
-            <div style="font-size: 28px; font-weight: bold; color: #FFD700;">${entry.avgScore}</div>
-            <div style="font-size: 11px; color: #666;">gemiddeld</div>
+            <div style="font-size: 28px; font-weight: bold; color: var(--color-accent-yellow);">${entry.avgScore}</div>
+            <div class="wine-card-meta">gemiddeld</div>
           </div>
         </div>
       </div>
@@ -456,19 +469,17 @@ function filterAndSearch() {
   } else {
     list.innerHTML = filtered.map(w => {
       const allNotesForWine = wines.filter(note => note.wine_id === w.wine_id)
-      
+      const count = allNotesForWine.length
+
       return `
         <div class="wine-card" onclick="showWineGroupDetail('${w.wine_id}')">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div class="flex-between">
             <div>
-              <div style="font-weight: 500;">${w.naam}</div>
-              <div style="font-size: 12px; color: #666;">
-                ${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}
-              </div>
-              <div style="font-size: 11px; color: #999; margin-top: 4px;">
-                ${allNotesForWine.length} notitie${allNotesForWine.length !== 1 ? 's' : ''}
-              </div>
+              <div class="wine-card-title">${w.naam}</div>
+              <div class="wine-card-meta">${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}</div>
+              <span class="note-badge">${count} notitie${count !== 1 ? 's' : ''}</span>
             </div>
+            <div class="wine-chevron">›</div>
           </div>
         </div>
       `
@@ -485,26 +496,28 @@ function showWineGroupDetail(wineId) {
   
   const app = document.getElementById('app')
   app.innerHTML = `
-    <div class="app">
-      <button class="button" onclick="switchScreen('lijst')" style="margin-bottom: 1rem;">← Terug</button>
-      
-      <h2>${firstNote.naam}</h2>
-      <div style="font-size: 13px; color: #666; margin-bottom: 1rem;">
-        ${[firstNote.druif, firstNote.regio, firstNote.jaar].filter(Boolean).join(' · ')}
+    <div class="app-outer">
+      <div class="app-card">
+        <button class="back-link" onclick="switchScreen('lijst')">← Terug naar overzicht</button>
+
+        <h2 style="color: var(--color-primary-dark-pink); text-align: center; font-size: 26px; margin-bottom: 4px;">${firstNote.naam}</h2>
+        <div style="text-align: center; font-size: 13px; color: var(--color-text-light); margin-bottom: 20px;">${[firstNote.druif, firstNote.regio, firstNote.jaar].filter(Boolean).join(' · ')}</div>
+
+        <div id="notes-tabs" class="tabs-bar"></div>
+
+        <div id="notes-content"></div>
+
+        ${myNote ? `
+          <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid var(--color-border);">
+            <button class="button" onclick="editWine('${myNote.id}')" style="width: 100%; margin-bottom: 0.5rem;">✏️ Mijn notitie bewerken</button>
+            <button class="button" onclick="addNoteToWine('${wineId}')" style="width: 100%;">+ Nog een notitie</button>
+          </div>
+        ` : `
+          <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid var(--color-border);">
+            <button class="button" onclick="addNoteToWine('${wineId}')" style="width: 100%;">+ Voeg notitie toe</button>
+          </div>
+        `}
       </div>
-      
-      <div id="notes-tabs" style="display: flex; gap: 8px; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem; overflow-x: auto;"></div>
-      
-      <div id="notes-content"></div>
-      
-      ${myNote ? `
-        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--color-border);">
-          <button class="button" onclick="editWine('${myNote.id}')" style="width: 100%; background: #e3f2fd; color: #1976d2; margin-bottom: 0.5rem;">✏️ Mijn notitie bewerken</button>
-          <button class="button" onclick="addNoteToWine('${wineId}')" style="width: 100%; background: #e8f5e9; color: #2e7d32;">+ Nog een notitie voor deze wijn</button>
-        </div>
-      ` : `
-        <button class="button" onclick="addNoteToWine('${wineId}')" style="width: 100%; background: #e8f5e9; color: #2e7d32; margin-top: 2rem;">+ Voeg notitie toe</button>
-      `}
     </div>
   `
   
@@ -677,12 +690,13 @@ function editWine(noteId) {
 
 function renderForm(container) {
   const isEditing = editingWineId !== null;
-  
+
   container.innerHTML = `
-    <div class="app">
-      <h1>${isEditing ? 'Wijzigingen opslaan' : 'Proefformulier'}</h1>
-      
-      <button class="button" onclick="switchScreen('scan')" style="width: 100%; margin-bottom: 1rem;">📸 Etiket scannen</button>
+    <div class="app-outer">
+      <div class="app-card">
+        <button class="back-link" onclick="switchScreen('lijst')">← Terug naar overzicht</button>
+
+        <h1 class="page-hero-title">${isEditing ? 'Bewerken' : 'Proefnotitie'}</h1>
       
       <!-- WIJNINFO -->
       <div class="card">
@@ -715,6 +729,7 @@ function renderForm(container) {
           <label>Gastronomie / Pairing</label>
           <input type="text" id="f-gastro" placeholder="bijv. Lam, kaas">
         </div>
+        <button class="scan-btn" onclick="switchScreen('scan')">📷 Of scan het etiket hier</button>
       </div>
 
       <!-- UITERLIJK -->
@@ -910,35 +925,38 @@ function renderForm(container) {
       <button class="button" onclick="saveWine()" style="width: 100%;">${isEditing ? 'Wijzigingen opslaan' : 'Opslaan'}</button>
       <button class="button" onclick="switchScreen('lijst')" style="width: 100%; margin-top: 0.5rem;">Annuleren</button>
     </div>
+    </div>
   `;
-  
+
   setupChips();
 }
 
 function renderScan(container) {
   container.innerHTML = `
-    <div class="app">
-      <button class="button" onclick="switchScreen('nieuw')" style="margin-bottom: 1rem;">← Terug naar formulier</button>
-      <h2>Etiket herkennen</h2>
-            
-      <div class="card">
-        <div style="border: 2px dashed var(--color-border); padding: 2rem; text-align: center; cursor: pointer;" 
-             onclick="document.getElementById('img-input').click()">
-          <div style="font-size: 32px; margin-bottom: 8px;">📸</div>
-          <div style="font-weight: 500;">Upload een foto van het etiket</div>
-        </div>
-        
-        <input type="file" id="img-input" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
-        
-        <div id="preview" style="display: none; margin-top: 1rem;">
-          <img id="preview-img" style="width: 100%; max-height: 200px; object-fit: contain; border-radius: 4px;">
-        </div>
-        
-        <button id="analyze-btn" class="button" onclick="analyzeLabel()" style="width: 100%; display: none; margin-top: 0.5rem;">Analyseer met AI</button>
-        
-        <div id="scan-status" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--color-bg-secondary); border-radius: 4px;">
-          <div id="scan-result-text"></div>
-          <button id="use-btn" class="button" onclick="useScannedWine()" style="width: 100%; margin-top: 0.5rem; display: none;">→ Gebruik in formulier</button>
+    <div class="app-outer">
+      <div class="app-card">
+        <button class="back-link" onclick="switchScreen('nieuw')">← Terug naar formulier</button>
+
+        <h1 class="page-hero-title">Etiket scannen</h1>
+
+        <div class="card">
+          <div class="upload-zone" onclick="document.getElementById('img-input').click()">
+            <span class="upload-zone-icon">📸</span>
+            <div class="upload-zone-label">Upload een foto van het etiket</div>
+          </div>
+
+          <input type="file" id="img-input" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+
+          <div id="preview" style="display: none; margin-top: 1rem;">
+            <img id="preview-img" style="width: 100%; max-height: 200px; object-fit: contain; border-radius: var(--radius-md);">
+          </div>
+
+          <button id="analyze-btn" class="button" onclick="analyzeLabel()" style="width: 100%; display: none; margin-top: 0.5rem;">Analyseer met AI</button>
+
+          <div id="scan-status" style="display: none; margin-top: 1rem; padding: 1rem; background: white; border-radius: var(--radius-md); border: 2px solid var(--color-border);">
+            <div id="scan-result-text"></div>
+            <button id="use-btn" class="button" onclick="useScannedWine()" style="width: 100%; margin-top: 0.5rem; display: none;">→ Gebruik in formulier</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1283,6 +1301,17 @@ Kwaliteit: ${wine.kwaliteit}
   }
 }
 
+// ============= LOGOUT =============
+
+function handleLogout() {
+  isLoggedIn = false
+  currentUserId = null
+  wines = []
+  currentFilter = null
+  currentSearch = ''
+  showLoginScreen()
+}
+
 // ============= INIT =============
 
 async function init() {
@@ -1318,3 +1347,4 @@ window.showSignupScreen = showSignupScreen
 window.handleSignup = handleSignup
 window.showMyWines = showMyWines
 window.showLeaderboard = showLeaderboard
+window.handleLogout = handleLogout

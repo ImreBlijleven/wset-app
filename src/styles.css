@@ -680,3 +680,298 @@ table td:last-child {
 .fade-in {
   animation: fadeIn 0.3s ease;
 }
+
+/* ============= APP LAYOUT (CARD-BASED) ============= */
+.app-outer {
+  min-height: 100vh;
+  background: var(--color-primary-pink);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 20px;
+}
+
+.app-card {
+  background: var(--color-light-bg);
+  border-radius: 20px 20px 0 0;
+  max-width: 600px;
+  width: 100%;
+  min-height: calc(100vh - 20px);
+  padding: 28px 20px 100px 20px;
+}
+
+/* ============= HERO PAGE TITLE ============= */
+.page-hero-title {
+  font-family: var(--font-family-heading);
+  font-size: clamp(28px, 8vw, 50px);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-accent-yellow);
+  text-shadow: 4px 4px 0px #8B4513;
+  text-align: center;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin: 0 0 var(--spacing-xl) 0;
+  line-height: 1.1;
+}
+
+/* ============= BOTTOM NAVIGATION ============= */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 2px solid var(--color-border);
+  display: flex;
+  height: 72px;
+  z-index: 100;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+}
+
+@media (min-width: 600px) {
+  .bottom-nav {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: 600px;
+  }
+}
+
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  color: var(--color-primary-pink);
+  transition: background 0.15s ease;
+  border: none;
+  background: transparent;
+  font-family: var(--font-family-main);
+  padding: var(--spacing-sm);
+}
+
+.bottom-nav-item:hover {
+  background: rgba(255, 230, 230, 0.6);
+}
+
+.bottom-nav-label {
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.3px;
+}
+
+/* ============= BACK LINK ============= */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-primary-dark-pink);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  margin-bottom: var(--spacing-lg);
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-family-main);
+}
+
+.back-link:hover {
+  color: var(--color-primary-dark-pink);
+  opacity: 0.75;
+}
+
+/* ============= SCAN BUTTON (inside card) ============= */
+.scan-btn {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-primary-dark-pink);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: var(--spacing-md);
+}
+
+.scan-btn:hover {
+  background: #FF5252;
+  transform: translateY(-1px);
+}
+
+/* ============= PAGE NAVIGATION ============= */
+.page-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md) 0 var(--spacing-lg) 0;
+  margin-bottom: var(--spacing-lg);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.nav-brand {
+  font-family: var(--font-family-heading);
+  font-size: 20px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-accent-yellow);
+  text-shadow: 2px 2px 0px rgba(139, 69, 19, 0.4);
+  letter-spacing: 4px;
+}
+
+.nav-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.nav-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: var(--radius-md);
+  padding: 6px var(--spacing-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-family-main);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.nav-btn-primary {
+  background: white;
+  color: var(--color-primary-pink);
+  border-color: white;
+  font-weight: var(--font-weight-bold);
+}
+
+.nav-btn-primary:hover {
+  background: var(--color-light-bg);
+  color: var(--color-primary-dark-pink);
+}
+
+/* ============= SEARCH INPUT ============= */
+.search-input {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-dark);
+  font-size: var(--font-size-base);
+  font-family: var(--font-family-main);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  background: white;
+  border-color: white;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.4);
+}
+
+.search-input::placeholder {
+  color: #AAAAAA;
+}
+
+/* ============= WINE CARD CONTENT ============= */
+.wine-card-title {
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
+  color: var(--color-text-dark);
+  margin-bottom: 3px;
+}
+
+.wine-card-meta {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
+  margin-top: 2px;
+}
+
+.note-badge {
+  display: inline-block;
+  font-size: var(--font-size-xs);
+  color: white;
+  background: var(--color-primary-pink);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-medium);
+  margin-top: 6px;
+}
+
+.wine-chevron {
+  color: #CCC;
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ============= FILTER CHIPS WRAPPER ============= */
+.filter-chips-wrap {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-lg);
+}
+
+/* ============= PAGE META (subtitle under wine name) ============= */
+.page-meta {
+  font-size: var(--font-size-base);
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: calc(0px - var(--spacing-md));
+  margin-bottom: var(--spacing-xl);
+}
+
+/* ============= UPLOAD ZONE ============= */
+.upload-zone {
+  border: 2px dashed rgba(255, 153, 153, 0.5);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 153, 153, 0.04);
+}
+
+.upload-zone:hover {
+  border-color: var(--color-primary-pink);
+  background: rgba(255, 153, 153, 0.1);
+}
+
+.upload-zone-icon {
+  font-size: 40px;
+  margin-bottom: var(--spacing-md);
+  display: block;
+}
+
+.upload-zone-label {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-dark);
+}
+
+/* ============= LOGOUT LINK ============= */
+.logout-link {
+  text-align: center;
+  padding: var(--spacing-xl) 0 var(--spacing-md);
+  font-size: var(--font-size-sm);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.logout-link:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
