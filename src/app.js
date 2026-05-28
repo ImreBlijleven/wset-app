@@ -1132,13 +1132,18 @@ function setupChips() {
 
 function toggleChip(el, group) {
   const multiSelect = ['aroma', 'smaak'].includes(group)
-  
+
   if (!multiSelect) {
+    const isAlreadySelected = el.classList.contains('selected')
     document.querySelectorAll(`#chips-${group} .chip.selected`).forEach(c => {
       c.classList.remove('selected')
     })
-    el.classList.add('selected')
-    chipState[group] = el.textContent.trim()
+    if (!isAlreadySelected) {
+      el.classList.add('selected')
+      chipState[group] = el.textContent.trim()
+    } else {
+      delete chipState[group]
+    }
   } else {
     el.classList.toggle('selected')
     if (!chipState[group]) chipState[group] = []
@@ -1160,12 +1165,19 @@ function getChips(group) {
 function selectScale(el, group, value) {
   const nodes = [...document.querySelectorAll(`#scale-${group} .scale-node`)]
   const idx = nodes.indexOf(el)
-  nodes.forEach((n, i) => {
-    n.classList.remove('filled', 'selected')
-    if (i < idx) n.classList.add('filled')
-    if (i === idx) n.classList.add('selected')
-  })
-  chipState[group] = value
+  const isAlreadySelected = el.classList.contains('selected')
+
+  nodes.forEach(n => n.classList.remove('filled', 'selected'))
+
+  if (!isAlreadySelected) {
+    nodes.forEach((n, i) => {
+      if (i < idx) n.classList.add('filled')
+      if (i === idx) n.classList.add('selected')
+    })
+    chipState[group] = value
+  } else {
+    delete chipState[group]
+  }
 }
 
 function selectScaleByValue(group, value) {
@@ -1175,10 +1187,16 @@ function selectScaleByValue(group, value) {
 }
 
 function setWineRating(value) {
-  chipState['lekker_rating'] = value
-  document.querySelectorAll('.wineglass-item').forEach((el, i) => {
-    el.classList.toggle('active', i < value)
-  })
+  const isAlreadySelected = chipState['lekker_rating'] === value
+  if (isAlreadySelected) {
+    chipState['lekker_rating'] = null
+    document.querySelectorAll('.wineglass-item').forEach(el => el.classList.remove('active'))
+  } else {
+    chipState['lekker_rating'] = value
+    document.querySelectorAll('.wineglass-item').forEach((el, i) => {
+      el.classList.toggle('active', i < value)
+    })
+  }
 }
 
 async function saveWine() {
