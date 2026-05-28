@@ -1112,12 +1112,17 @@ table td:last-child {
   margin-bottom: 16px;
   border: 3px solid #D67A7A;
   border-radius: 8px;
-  background: rgba(255, 153, 153, 0.6);
-  color: white;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--color-text-dark);
   font-size: 18px;
   font-family: var(--font-family-main);
   font-weight: 500;
   box-sizing: border-box;
+}
+
+.login-input::placeholder {
+  color: rgba(100, 50, 50, 0.55);
+  font-weight: 400;
 }
 
 @media (max-width: 600px) {

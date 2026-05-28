@@ -37,16 +37,9 @@ function showLoginScreen() {
           <h1 class="login-title">WSET</h1>
           <div class="login-subtitle">PROEFMETHODE</div>
 
-          <input type="text" id="login-username" placeholder="Username" class="login-input" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+          <input type="text" id="login-username" placeholder="Username" class="login-input">
 
-          <input type="password" id="login-password" placeholder="Wachtwoord" class="login-input" style="margin-bottom: 12px;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
-
-          <style>
-            #login-username::placeholder, #login-password::placeholder {
-              color: white !important;
-              opacity: 0.9;
-            }
-          </style>
+          <input type="password" id="login-password" placeholder="Wachtwoord" class="login-input" style="margin-bottom: 12px;">
 
           <div style="text-align: right; margin-bottom: 40px; font-size: 16px;">
             <a onclick="alert('Coming soon')" style="color: var(--color-primary-pink); cursor: pointer; text-decoration: none; font-weight: 600;">Wachtwoord vergeten?</a>
@@ -114,18 +107,11 @@ function showSignupScreen() {
           <h1 class="login-title">WSET</h1>
           <div class="login-subtitle">PROEFMETHODE</div>
 
-          <input type="text" id="signup-username" placeholder="Kies je username" class="login-input" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+          <input type="text" id="signup-username" placeholder="Kies je username" class="login-input">
 
-          <input type="password" id="signup-password" placeholder="Kies een wachtwoord" class="login-input" onfocus="this.style.color='white'" onblur="this.style.color='white'">
+          <input type="password" id="signup-password" placeholder="Kies een wachtwoord" class="login-input">
 
-          <input type="password" id="signup-password-confirm" placeholder="Bevestig wachtwoord" class="login-input" style="margin-bottom: 40px;" onfocus="this.style.color='white'" onblur="this.style.color='white'">
-
-          <style>
-            #signup-username::placeholder, #signup-password::placeholder, #signup-password-confirm::placeholder {
-              color: white !important;
-              opacity: 0.9;
-            }
-          </style>
+          <input type="password" id="signup-password-confirm" placeholder="Bevestig wachtwoord" class="login-input" style="margin-bottom: 40px;">
 
           <button onclick="handleSignup()" style="width: 100%; padding: 20px; background: white; color: var(--color-primary-pink); border: 3px solid var(--color-primary-pink); border-radius: 8px; font-size: 20px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;">Account maken</button>
 
