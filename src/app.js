@@ -1049,7 +1049,7 @@ function renderForm(container) {
           </div>
 
           <div class="field" style="margin-top: 24px;">
-            <label style="text-align: center; display: block; margin-bottom: 16px; font-size: 15px;">Was het lekker?</label>
+            <label style="text-align: center; display: block; margin-bottom: 16px; font-size: 15px;">Jouw persoonlijke rating</label>
             ${makeWineRating()}
           </div>
         </div>
