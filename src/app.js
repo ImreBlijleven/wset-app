@@ -42,7 +42,7 @@ function showLoginScreen() {
           <input type="password" id="login-password" placeholder="Wachtwoord" class="login-input" style="margin-bottom: 12px;">
 
           <div style="text-align: right; margin-bottom: 40px; font-size: 16px;">
-            <a onclick="alert('Coming soon')" style="color: var(--color-primary-pink); cursor: pointer; text-decoration: none; font-weight: 600;">Wachtwoord vergeten?</a>
+            <a onclick="alert('Wat vervelend! Stuur Imre even een berichtje en die zal dit voor je oplossen. 😊')" style="color: var(--color-primary-pink); cursor: pointer; text-decoration: none; font-weight: 600;">Wachtwoord vergeten?</a>
           </div>
 
           <button onclick="handleLogin()" style="width: 100%; padding: 20px; background: white; color: var(--color-primary-pink); border: 3px solid var(--color-primary-pink); border-radius: 8px; font-size: 20px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;">Login</button>
