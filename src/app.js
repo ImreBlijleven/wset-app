@@ -444,6 +444,7 @@ async function showMyWines() {
             <div class="wine-card-title">${w.naam}</div>
             <div class="wine-card-meta">${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}</div>
             ${w.created_at ? `<div class="wine-card-meta">${new Date(w.created_at).toLocaleDateString('nl-NL')}</div>` : ''}
+            ${w.lekker_rating ? `<div style="margin-top:6px;">${miniGlassRating(w.lekker_rating)}</div>` : ''}
           </div>
           <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
             ${w.ai_score ? `<div style="font-size:20px; font-weight:bold; color:var(--color-accent-yellow);">${w.ai_score}</div>` : ''}
@@ -622,6 +623,10 @@ function filterAndSearch() {
     list.innerHTML = filtered.map(w => {
       const allNotesForWine = wines.filter(note => note.wine_id === w.wine_id)
       const count = allNotesForWine.length
+      const ratings = allNotesForWine.map(n => n.lekker_rating).filter(Boolean)
+      const avgRating = ratings.length > 0
+        ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length)
+        : null
 
       return `
         <div class="wine-card" onclick="showWineGroupDetail('${w.wine_id}')">
@@ -629,7 +634,10 @@ function filterAndSearch() {
             <div>
               <div class="wine-card-title">${w.naam}</div>
               <div class="wine-card-meta">${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}</div>
-              <span class="note-badge">${count} notitie${count !== 1 ? 's' : ''}</span>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+                <span class="note-badge">${count} notitie${count !== 1 ? 's' : ''}</span>
+                ${avgRating ? miniGlassRating(avgRating) : ''}
+              </div>
             </div>
             <div class="wine-chevron">›</div>
           </div>
@@ -851,6 +859,15 @@ function makeScale(group, options) {
     `<div class="scale-node" onclick="selectScale(this,'${group}','${opt}')"><div class="scale-dot"></div><div class="scale-label">${opt}</div></div>`
   ).join('')
   return `<div class="scale-selector" id="scale-${group}"><div class="scale-track-wrapper">${nodes}</div></div>`
+}
+
+function miniGlassRating(rating, max = 5) {
+  if (!rating) return ''
+  const svg = (filled) => `<svg viewBox="0 0 24 42" width="14" height="20" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4C3 14 5 22 12 27C19 22 21 14 20 4Z"/><line x1="12" y1="27" x2="12" y2="38"/><line x1="7" y1="38" x2="17" y2="38"/></svg>`
+  const glasses = Array.from({ length: max }, (_, i) =>
+    `<span style="color:var(--color-primary-pink);opacity:${i < rating ? '1' : '0.2'}">${svg(i < rating)}</span>`
+  ).join('')
+  return `<div style="display:flex;gap:1px;align-items:center;">${glasses}</div>`
 }
 
 function makeWineRating() {
