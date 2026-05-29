@@ -753,7 +753,17 @@ function showNoteDetail(noteId, wineId) {
       </table>
     </div>
 
-    <button class="button" onclick="checkWithAI('${note.id}')" style="width: 100%; margin-top: 1rem; background: #e8f5e9; color: #2e7d32; font-weight: 500;">🔍 Laat nakijken door AI-sommelier</button>
+    ${(() => {
+      const alreadyScored = note.ai_score && note.ai_score_date &&
+        new Date(note.updated_at) <= new Date(note.ai_score_date)
+      if (alreadyScored) {
+        return `<div style="margin-top:1rem; padding:14px 16px; background:#e8f5e9; border-radius:8px; display:flex; align-items:center; justify-content:space-between;">
+          <span style="color:#2e7d32; font-weight:500;">🔍 AI-score: <strong>${note.ai_score}/10</strong></span>
+          <span style="color:#888; font-size:12px;">Pas je notitie aan om opnieuw te beoordelen</span>
+        </div>`
+      }
+      return `<button class="button" onclick="checkWithAI('${note.id}')" style="width: 100%; margin-top: 1rem; background: #e8f5e9; color: #2e7d32; font-weight: 500;">🔍 Laat nakijken door AI-sommelier</button>`
+    })()}
   `
 }
 
@@ -1471,7 +1481,7 @@ Kwaliteit: ${wine.kwaliteit}
 
     if (score > 0) {
       wine.ai_score = score
-      wine.ai_score_date = new Date().toLocaleDateString('nl-NL')
+      wine.ai_score_date = new Date().toISOString()
       
       const { error } = await supabase
         .from('wines')
