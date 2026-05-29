@@ -1157,7 +1157,6 @@ function selectScale(el, group, value) {
 
   if (!isAlreadySelected) {
     nodes.forEach((n, i) => {
-      if (i < idx) n.classList.add('filled')
       if (i === idx) n.classList.add('selected')
     })
     chipState[group] = value
@@ -1535,3 +1534,4 @@ window.selectScale = selectScale
 window.setWineRating = setWineRating
 window.showLeaderboard = showLeaderboard
 window.handleLogout = handleLogout
+window.showLoginScreen = showLoginScreen
