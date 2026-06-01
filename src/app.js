@@ -670,6 +670,7 @@ function showWineGroupDetail(wineId) {
         ${myNote ? `
           <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid var(--color-border);">
             <button class="button" onclick="editWine('${myNote.id}')" style="width: 100%; margin-bottom: 0.5rem;">✏️ Mijn notitie bewerken</button>
+            <button class="button" onclick="deleteWine('${myNote.id}')" style="width: 100%; margin-bottom: 0.5rem; color: #c62828; border-color: #c62828;">🗑️ Notitie verwijderen</button>
             <button class="button" onclick="addNoteToWine('${wineId}')" style="width: 100%;">+ Nog een notitie</button>
           </div>
         ` : `
@@ -1352,7 +1353,7 @@ function switchScreen(screen) {
 }
 
 async function deleteWine(id) {
-  if (confirm('Weet je zeker?')) {
+  if (confirm('Weet je zeker dat je deze notitie wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) {
     wines = wines.filter(w => w.id !== id)
     
     const { error } = await supabase
