@@ -34,7 +34,7 @@ of (als de wijn zelf niet herkend wordt):
 {"known": false, "reason": "korte reden waarom niet"}`;
 
     const verifyResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",
       contents: [{ role: "user", parts: [{ text: verifyPrompt }] }]
     });
 
@@ -64,7 +64,7 @@ of (als de wijn zelf niet herkend wordt):
 Wat maakt deze wijn bijzonder? Schrijf professioneel maar begrijpelijk.`;
 
     const expertResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",
       contents: [{ role: "user", parts: [{ text: expertPrompt }] }]
     });
 
@@ -95,7 +95,7 @@ Geef EXACT in dit format (met **):
 → Tip: [1 leertip]`;
 
     const feedbackResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",
       contents: [{ role: "user", parts: [{ text: comparisonPrompt }] }]
     });
 

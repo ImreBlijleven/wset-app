@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
       // Stap 1: Lees alle tekst en zichtbare informatie van het etiket
       const extractResponse = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash",
         contents: [{
           role: "user",
           parts: [
@@ -75,7 +75,7 @@ Geef ALLEEN een JSON object (geen markdown, geen backticks):
 }`;
 
       const enrichResponse = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash",
         contents: [{ role: "user", parts: [{ text: enrichPrompt }] }]
       });
 
