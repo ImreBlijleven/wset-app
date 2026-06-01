@@ -683,18 +683,20 @@ async function showWineGroupDetail(wineId) {
     </div>
   `
 
+  const startNote = myNote || allNotes[0]
+
   const tabsDiv = document.getElementById('notes-tabs')
-  tabsDiv.innerHTML = allNotes.map((note, idx) => {
+  tabsDiv.innerHTML = allNotes.map((note) => {
     const isMe = note.user_id === currentUserId
     const label = isMe ? 'Jij' : (userCache[note.user_id] || 'Onbekend')
     return `
-      <button class="filter-chip ${idx === 0 ? 'active' : ''}" data-note-id="${note.id}" onclick="showNoteDetail('${note.id}', '${wineId}')" style="padding: 6px 12px;">
+      <button class="filter-chip ${note.id === startNote.id ? 'active' : ''}" data-note-id="${note.id}" onclick="showNoteDetail('${note.id}', '${wineId}')" style="padding: 6px 12px;">
         ${label}
       </button>
     `
   }).join('')
 
-  showNoteDetail(allNotes[0].id, wineId)
+  showNoteDetail(startNote.id, wineId)
 }
 
 function showNoteDetail(noteId, wineId) {
