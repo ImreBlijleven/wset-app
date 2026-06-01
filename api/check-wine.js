@@ -19,15 +19,18 @@ export default async function handler(req, res) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    const wijnLabel = [wineInfo.naam, wineInfo.jaar, wineInfo.druif, wineInfo.regio]
+    // Identificeer de wijn zonder het jaar — jaar is optioneel voor herkenning
+    const wijnZonderJaar = [wineInfo.naam, wineInfo.druif, wineInfo.regio]
       .filter(Boolean).join(', ');
 
-    // Stap 1: Verificatie — is de wijn herkenbaar?
-    const verifyPrompt = `Is de wijn "${wijnLabel}" een specifieke, bestaande wijn die jij met zekerheid kunt identificeren?
+    // Stap 1: Verificatie — is de wijn herkenbaar (jaar buiten beschouwing)?
+    const verifyPrompt = `Is de wijn "${wijnZonderJaar}" een specifieke, bestaande wijn die jij kunt identificeren op basis van naam, druif en/of regio? Het jaar is optioneel.
 
 Antwoord UITSLUITEND met dit JSON (geen markdown, geen extra tekst):
-{"known": true, "confidence": "high", "identified_as": "volledige naam van de wijn"}
-of
+{"known": true, "confidence": "high", "identified_as": "volledige naam van de wijn zonder jaar", "year_known": true}
+of (als jaar onbekend of onzeker):
+{"known": true, "confidence": "high", "identified_as": "volledige naam van de wijn zonder jaar", "year_known": false}
+of (als de wijn zelf niet herkend wordt):
 {"known": false, "reason": "korte reden waarom niet"}`;
 
     const verifyResponse = await ai.models.generateContent({
@@ -44,12 +47,19 @@ of
     if (!verify.known || verify.confidence === 'low') {
       return res.status(200).json({
         error: 'wine_not_found',
-        message: verify.reason || 'De wijn kon niet worden herkend. Vul de wijninfo vollediger in (naam, druif, regio, jaar) om een goede beoordeling te krijgen.'
+        message: verify.reason || 'De wijn kon niet worden herkend. Vul de wijninfo vollediger in (naam, druif, regio) om een goede beoordeling te krijgen.'
       });
     }
 
-    // Stap 2: Expert analyse op basis van de herkende wijn
-    const expertPrompt = `Je bent een WSET Level 2 sommelier. Analyseer de wijn "${verify.identified_as}" in 4-5 zinnen.
+    const jaarInfo = wineInfo.jaar
+      ? `oogstjaar ${wineInfo.jaar}`
+      : 'onbekend oogstjaar'
+    const yearWarning = (!wineInfo.jaar || !verify.year_known)
+      ? `\n\nLet op: het oogstjaar is ${wineInfo.jaar ? `"${wineInfo.jaar}" maar dit jaar kon niet worden bevestigd` : 'niet opgegeven'}. De analyse is gebaseerd op de typische stijl van deze wijn. Kleine afwijkingen per vintage zijn mogelijk.`
+      : ''
+
+    // Stap 2: Expert analyse
+    const expertPrompt = `Je bent een WSET Level 2 sommelier. Analyseer de wijn "${verify.identified_as}" (${jaarInfo}) in 4-5 zinnen.${yearWarning}
 
 Wat maakt deze wijn bijzonder? Schrijf professioneel maar begrijpelijk.`;
 
@@ -61,7 +71,11 @@ Wat maakt deze wijn bijzonder? Schrijf professioneel maar begrijpelijk.`;
     const expertNotes = expertResponse.text;
 
     // Stap 3: Vergelijking + score + feedback
-    const comparisonPrompt = `Je expert analyse van "${verify.identified_as}":
+    const vintageNote = (!wineInfo.jaar || !verify.year_known)
+      ? `\n⚠️ Jaar niet bevestigd — kleine afwijking per vintage mogelijk.`
+      : ''
+
+    const comparisonPrompt = `Je expert analyse van "${verify.identified_as}" (${jaarInfo}):
 ${expertNotes}
 
 Student notitie:
@@ -70,7 +84,7 @@ ${userNotes}
 Geef EXACT in dit format (met **):
 
 **EXPERT ANALYSE**
-[2-3 zinnen wat deze wijn bijzonder maakt]
+[2-3 zinnen wat deze wijn bijzonder maakt]${vintageNote}
 
 **SCORE: X/10**
 [1 zin waarom]
