@@ -678,17 +678,7 @@ async function showWineGroupDetail(wineId) {
 
         <div id="notes-content"></div>
 
-        ${myNote ? `
-          <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid var(--color-border);">
-            <button class="button" onclick="editWine('${myNote.id}')" style="width: 100%; margin-bottom: 0.5rem;">✏️ Mijn notitie bewerken</button>
-            <button class="button" onclick="deleteWine('${myNote.id}')" style="width: 100%; margin-bottom: 0.5rem; color: #c62828; border-color: #c62828;">🗑️ Notitie verwijderen</button>
-            <button class="button" onclick="addNoteToWine('${wineId}')" style="width: 100%;">+ Nog een notitie</button>
-          </div>
-        ` : `
-          <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid var(--color-border);">
-            <button class="button" onclick="addNoteToWine('${wineId}')" style="width: 100%;">+ Voeg notitie toe</button>
-          </div>
-        `}
+        <div id="note-actions" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid var(--color-border);"></div>
       </div>
     </div>
   `
@@ -783,6 +773,25 @@ function showNoteDetail(noteId, wineId) {
       return `<button class="button" onclick="checkWithAI('${note.id}')" style="width: 100%; margin-top: 1rem; background: #e8f5e9; color: #2e7d32; font-weight: 500;">🔍 Laat nakijken door AI-sommelier</button>`
     })()}
   `
+
+  // Actieknoppen onderaan — alleen voor eigen notitie
+  const actionsDiv = document.getElementById('note-actions')
+  if (actionsDiv) {
+    const alreadyHaveOwnNote = wines.some(w => w.wine_id === note.wine_id && w.user_id === currentUserId)
+    if (isOwnNote) {
+      actionsDiv.innerHTML = `
+        <button class="button" onclick="editWine('${note.id}')" style="width: 100%; margin-bottom: 0.5rem;">✏️ Mijn notitie bewerken</button>
+        <button class="button" onclick="deleteWine('${note.id}')" style="width: 100%; margin-bottom: 0.5rem; color: #c62828; border-color: #c62828;">🗑️ Notitie verwijderen</button>
+        <button class="button" onclick="addNoteToWine('${note.wine_id}')" style="width: 100%;">+ Nog een notitie</button>
+      `
+    } else if (!alreadyHaveOwnNote) {
+      actionsDiv.innerHTML = `
+        <button class="button" onclick="addNoteToWine('${note.wine_id}')" style="width: 100%;">+ Voeg jouw notitie toe</button>
+      `
+    } else {
+      actionsDiv.innerHTML = ''
+    }
+  }
 }
 
 function addNoteToWine(wineId) {
@@ -810,9 +819,10 @@ function addNoteToWine(wineId) {
 }
 
 function editWine(noteId) {
-  editingWineId = noteId
   const wine = wines.find(w => w.id === noteId)
   if (!wine) return
+  if (wine.user_id !== currentUserId) return
+  editingWineId = noteId
   
   switchScreen('nieuw')
   
@@ -1372,6 +1382,8 @@ function switchScreen(screen) {
 }
 
 async function deleteWine(id) {
+  const wine = wines.find(w => w.id === id)
+  if (!wine || wine.user_id !== currentUserId) return
   if (confirm('Weet je zeker dat je deze notitie wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) {
     wines = wines.filter(w => w.id !== id)
     
