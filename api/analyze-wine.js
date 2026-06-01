@@ -13,77 +13,66 @@ export default async function handler(req, res) {
 
   try {
     const apiKey = process.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'API key not configured' });
-    }
+    if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
 
     const ai = new GoogleGenAI({ apiKey });
 
     if (analyzeType === 'label') {
 
-      // Stap 1: Lees alle tekst en zichtbare informatie van het etiket
-      const extractResponse = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: [{
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType: mediaType,
-                data: imageBase64
-              }
-            },
-            {
-              text: `Lees alle tekst van dit wijnetiket zo nauwkeurig mogelijk.
-Geef ALLEEN een JSON object (geen markdown, geen backticks):
-{
-  "raw_name": "naam op het etiket",
-  "producer": "wijnhuis/producent",
-  "vintage": "oogstjaar of null",
-  "appellation": "appellation/denominatie op het etiket of null",
-  "region": "regio op het etiket of null",
-  "country": "land op het etiket of null",
-  "grape": "druif als vermeld op het etiket of null",
-  "other": "andere relevante tekst"
-}`
-            }
-          ]
-        }]
+      // Stap 1: Label scannen met 2.0 Flash — JSON output geforceerd
+      const wijnAfbeelding = {
+        inlineData: { data: imageBase64, mimeType: mediaType }
+      };
+
+      const labelResponse = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: [
+          wijnAfbeelding,
+          'Analyseer dit wijnlabel. Extraheer de volgende informatie en zet het om in een clean JSON-object met de velden: "naam" (wijnnaam), "druif", "jaar", "regio", "producent". Zet null voor ontbrekende velden.'
+        ],
+        config: {
+          responseMimeType: 'application/json'
+        }
       });
 
-      const extractMatch = extractResponse.text.match(/\{[\s\S]*\}/);
-      if (!extractMatch) throw new Error('Kon etikettekst niet lezen');
-      const extracted = JSON.parse(extractMatch[0]);
+      let extracted = {};
+      try {
+        extracted = JSON.parse(labelResponse.text);
+      } catch {
+        const match = (labelResponse.text ?? '').match(/\{[\s\S]*\}/);
+        if (match) extracted = JSON.parse(match[0]);
+      }
 
-      // Stap 2: Identificeer de wijn op basis van de etikettekst en Gemini's wijnkennis
-      const enrichPrompt = `Op basis van dit wijnetiket:
-${JSON.stringify(extracted, null, 2)}
+      // Stap 2: Online zoeken via Google Search Grounding met 2.0 Flash
+      const zoekPrompt = `Zoek uitgebreide informatie over deze wijn: ${JSON.stringify(extracted)}.
+Geef een JSON object terug met de velden: naam (volledige wijnnaam), druif (druivenras of -rassen), jaar (oogstjaar of null), regio (regio/appellation), type (rood/wit/rosé/schuim/dessert), beschrijving (1-2 zinnen wat de wijn bijzonder maakt), confidence (high/medium/low).
+Antwoord ALLEEN met het JSON object, geen andere tekst.`;
 
-Identificeer deze specifieke wijn met behulp van je wijnkennis. Gebruik de etikettekst als uitgangspunt en vul ontbrekende informatie aan vanuit je kennis over deze producent/appellation/wijnstijl.
-
-Geef ALLEEN een JSON object (geen markdown, geen backticks):
-{
-  "naam": "volledige wijnnaam zoals bekend in de wijnwereld",
-  "druif": "druivenras of -rassen (bijv. Cabernet Sauvignon of Grenache/Syrah/Mourvèdre)",
-  "jaar": "oogstjaar als string of null",
-  "regio": "regio en appellation (bijv. Pauillac, Bordeaux)",
-  "type": "rood/wit/rosé/schuim/dessert",
-  "producent": "naam van het wijnhuis",
-  "land": "land van herkomst",
-  "beschrijving": "1-2 zinnen over wat deze wijn bijzonder maakt",
-  "confidence": "high/medium/low"
-}`;
-
-      const enrichResponse = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: [{ role: "user", parts: [{ text: enrichPrompt }] }]
+      const infoResponse = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: zoekPrompt,
+        config: {
+          tools: [{ googleSearch: {} }]
+        }
       });
 
-      const enrichMatch = enrichResponse.text.match(/\{[\s\S]*\}/);
-      if (!enrichMatch) throw new Error('Kon wijn niet identificeren');
-      const enriched = JSON.parse(enrichMatch[0]);
+      let enriched = {};
+      try {
+        enriched = JSON.parse(infoResponse.text ?? '{}');
+      } catch {
+        const match = (infoResponse.text ?? '').match(/\{[\s\S]*\}/);
+        if (match) enriched = JSON.parse(match[0]);
+      }
 
-      return res.status(200).json(enriched);
+      return res.status(200).json({
+        naam: enriched.naam || extracted.naam || null,
+        druif: enriched.druif || extracted.druif || null,
+        jaar: enriched.jaar || extracted.jaar || null,
+        regio: enriched.regio || extracted.regio || null,
+        type: enriched.type || null,
+        beschrijving: enriched.beschrijving || null,
+        confidence: enriched.confidence || 'medium'
+      });
     }
 
   } catch (error) {
