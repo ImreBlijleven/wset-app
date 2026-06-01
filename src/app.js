@@ -1422,7 +1422,14 @@ async function analyzeLabel() {
     const info = await analyzeWithGemini(scannedWineData.base64, scannedWineData.mediaType)
     scannedWineData = { ...scannedWineData, ...info }
     
-    resultText.innerHTML = `<strong>${info.naam || '?'}</strong><br><span style="color:#666;">${[info.druif, info.regio, info.jaar].filter(Boolean).join(' · ')}</span>`
+    const confidenceLabel = info.confidence === 'high' ? '✓ Zeker gevonden' : info.confidence === 'medium' ? '~ Waarschijnlijk gevonden' : '? Onzeker'
+    const confidenceColor = info.confidence === 'high' ? '#2e7d32' : info.confidence === 'medium' ? '#e65100' : '#c62828'
+    resultText.innerHTML = `
+      <strong>${info.naam || '?'}</strong><br>
+      <span style="color:#666;">${[info.druif, info.regio, info.jaar].filter(Boolean).join(' · ')}</span>
+      ${info.beschrijving ? `<br><span style="color:#888; font-size:12px; font-style:italic;">${info.beschrijving}</span>` : ''}
+      <br><span style="font-size:11px; color:${confidenceColor};">${confidenceLabel}</span>
+    `
     useBtn.style.display = 'block'
   } catch (err) {
     resultText.innerHTML = `<span style="color: #c62828;">${err.message}</span>`
@@ -1477,6 +1484,15 @@ Kwaliteit: ${wine.kwaliteit}
     if (!response.ok) throw new Error('Server error')
 
     const result = await response.json()
+
+    if (result.error === 'wine_not_found') {
+      resultDiv.innerHTML = `
+        <div style="color:#c62828; font-weight:bold; margin-bottom:0.5rem;">⚠️ Wijn niet herkend</div>
+        <div style="font-size:13px; color:#666; line-height:1.6;">${result.message}</div>
+      `
+      return
+    }
+
     const { feedback, score } = result
 
     if (score > 0) {
