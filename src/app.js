@@ -11,6 +11,7 @@ let db
 let editingWineId = null
 let isLoggedIn = false
 let currentUserId = null
+const userCache = {}  // { user_id: username }
 
 // ============= AUTH HELPERS =============
 
@@ -647,13 +648,23 @@ function filterAndSearch() {
   }
 }
 
-function showWineGroupDetail(wineId) {
+async function showWineGroupDetail(wineId) {
   const allNotes = getWineNotes(wineId)
   if (allNotes.length === 0) return
-  
+
   const firstNote = allNotes[0]
   const myNote = allNotes.find(n => n.user_id === currentUserId)
-  
+
+  // Haal usernames op voor alle unieke users in deze notities
+  const unknownIds = [...new Set(allNotes.map(n => n.user_id))].filter(id => !userCache[id])
+  if (unknownIds.length > 0) {
+    const { data } = await supabase
+      .from('users')
+      .select('id, username')
+      .in('id', unknownIds)
+    if (data) data.forEach(u => { userCache[u.id] = u.username })
+  }
+
   const app = document.getElementById('app')
   app.innerHTML = `
     <div class="app-outer">
@@ -681,17 +692,18 @@ function showWineGroupDetail(wineId) {
       </div>
     </div>
   `
-  
+
   const tabsDiv = document.getElementById('notes-tabs')
   tabsDiv.innerHTML = allNotes.map((note, idx) => {
-    const isMyNote = myNote?.id === note.id
+    const isMe = note.user_id === currentUserId
+    const label = isMe ? 'Jij' : (userCache[note.user_id] || 'Onbekend')
     return `
       <button class="filter-chip ${idx === 0 ? 'active' : ''}" onclick="showNoteDetail('${note.id}', '${wineId}')" style="padding: 6px 12px;">
-        ${note.user_id === currentUserId ? 'Jij' : 'Iemand'} ${isMyNote ? '' : ''}
+        ${label}
       </button>
     `
   }).join('')
-  
+
   showNoteDetail(allNotes[0].id, wineId)
 }
 
