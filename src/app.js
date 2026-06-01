@@ -530,9 +530,9 @@ async function handleChangePasswordSubmit() {
   showMyWines()
 }
 
-function showLeaderboard() {
+async function showLeaderboard() {
   const app = document.getElementById('app')
-  
+
   // Get all unique users with scores
   const userScores = {}
   wines.forEach(wine => {
@@ -546,10 +546,20 @@ function showLeaderboard() {
       }
     }
   })
-  
+
+  // Haal usernames op voor onbekende user IDs
+  const unknownIds = Object.keys(userScores).filter(id => !userCache[id])
+  if (unknownIds.length > 0) {
+    const { data } = await supabase
+      .from('users')
+      .select('id, username')
+      .in('id', unknownIds)
+    if (data) data.forEach(u => { userCache[u.id] = u.username })
+  }
+
   // Calculate averages and sort
   const leaderboard = Object.entries(userScores).map(([userId, data]) => {
-    const avgScore = data.scores.length > 0 
+    const avgScore = data.scores.length > 0
       ? (data.scores.reduce((a, b) => a + b, 0) / data.scores.length).toFixed(1)
       : 0
     return { userId, avgScore: parseFloat(avgScore), scoredCount: data.scores.length, totalCount: data.count }
@@ -583,7 +593,7 @@ function showLeaderboard() {
           <div style="display: flex; align-items: center; gap: 12px;">
             <div style="font-size: 26px;">${medal}</div>
             <div>
-              <div class="wine-card-title">${isMe ? 'Jij' : 'Gebruiker ' + entry.userId.substring(0, 8)}</div>
+              <div class="wine-card-title">${isMe ? 'Jij' : (userCache[entry.userId] || 'Onbekend')}</div>
               <div class="wine-card-meta">${entry.scoredCount}/${entry.totalCount} wijnen beoordeeld</div>
             </div>
           </div>
