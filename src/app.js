@@ -698,7 +698,7 @@ async function showWineGroupDetail(wineId) {
     const isMe = note.user_id === currentUserId
     const label = isMe ? 'Jij' : (userCache[note.user_id] || 'Onbekend')
     return `
-      <button class="filter-chip ${idx === 0 ? 'active' : ''}" onclick="showNoteDetail('${note.id}', '${wineId}')" style="padding: 6px 12px;">
+      <button class="filter-chip ${idx === 0 ? 'active' : ''}" data-note-id="${note.id}" onclick="showNoteDetail('${note.id}', '${wineId}')" style="padding: 6px 12px;">
         ${label}
       </button>
     `
@@ -710,9 +710,15 @@ async function showWineGroupDetail(wineId) {
 function showNoteDetail(noteId, wineId) {
   const note = wines.find(w => w.id === noteId)
   if (!note) return
-  
+
+  // Update actieve tab
+  document.querySelectorAll('#notes-tabs [data-note-id]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.noteId === noteId)
+  })
+
+  const isOwnNote = note.user_id === currentUserId
   const row = (label, val) => val ? `<tr><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); color: #666; width: 120px;">${label}</td><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); font-weight: 500;">${val}</td></tr>` : ''
-  
+
   const contentDiv = document.getElementById('notes-content')
   contentDiv.innerHTML = `
     <div class="card">
@@ -767,8 +773,8 @@ function showNoteDetail(noteId, wineId) {
     </div>
 
     ${(() => {
-      const alreadyScored = !!note.ai_score
-      if (alreadyScored) {
+      if (!isOwnNote) return ''
+      if (note.ai_score) {
         return `<div style="margin-top:1rem; padding:14px 16px; background:#e8f5e9; border-radius:8px; display:flex; align-items:center; justify-content:space-between;">
           <span style="color:#2e7d32; font-weight:500;">🔍 AI-score: <strong>${note.ai_score}/10</strong></span>
           <span style="color:#888; font-size:12px;">Pas je notitie aan om opnieuw te beoordelen</span>
