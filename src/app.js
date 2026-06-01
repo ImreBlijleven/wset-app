@@ -1515,7 +1515,10 @@ Kwaliteit: ${wine.kwaliteit}
       body: JSON.stringify({ wineInfo, userNotes })
     })
 
-    if (!response.ok) throw new Error('Server error')
+    if (!response.ok) {
+      const errBody = await response.json().catch(() => ({}))
+      throw new Error(errBody.error || `Server error ${response.status}`)
+    }
 
     const result = await response.json()
 

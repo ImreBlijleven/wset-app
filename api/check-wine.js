@@ -39,10 +39,16 @@ of (als de wijn zelf niet herkend wordt):
     });
 
     const verifyText = verifyResponse.text;
-    const verifyJson = verifyText.match(/\{[\s\S]*\}/);
-    if (!verifyJson) throw new Error('Verificatie mislukt');
+    if (!verifyText) throw new Error(`Leeg antwoord van model bij verificatie`);
+    const verifyJson = verifyText.match(/\{[\s\S]*?\}/);
+    if (!verifyJson) throw new Error(`Kon JSON niet vinden in: ${verifyText.slice(0, 200)}`);
 
-    const verify = JSON.parse(verifyJson[0]);
+    let verify;
+    try {
+      verify = JSON.parse(verifyJson[0]);
+    } catch (e) {
+      throw new Error(`JSON parse mislukt: ${verifyJson[0].slice(0, 200)}`);
+    }
 
     if (!verify.known || verify.confidence === 'low') {
       return res.status(200).json({
@@ -68,7 +74,7 @@ Wat maakt deze wijn bijzonder? Schrijf professioneel maar begrijpelijk.`;
       contents: [{ role: "user", parts: [{ text: expertPrompt }] }]
     });
 
-    const expertNotes = expertResponse.text;
+    const expertNotes = expertResponse.text ?? '';
 
     // Stap 3: Vergelijking + score + feedback
     const vintageNote = (!wineInfo.jaar || !verify.year_known)
@@ -99,7 +105,7 @@ Geef EXACT in dit format (met **):
       contents: [{ role: "user", parts: [{ text: comparisonPrompt }] }]
     });
 
-    const feedback = feedbackResponse.text;
+    const feedback = feedbackResponse.text ?? '';
     const scoreMatch = feedback.match(/SCORE:\s*(\d+)/);
     const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
 
@@ -107,6 +113,6 @@ Geef EXACT in dit format (met **):
 
   } catch (error) {
     console.error('API Error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message, stack: error.stack?.split('\n')[0] });
   }
 }
