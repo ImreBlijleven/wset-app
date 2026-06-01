@@ -767,8 +767,7 @@ function showNoteDetail(noteId, wineId) {
     </div>
 
     ${(() => {
-      const alreadyScored = note.ai_score && note.ai_score_date &&
-        new Date(note.updated_at) <= new Date(note.ai_score_date)
+      const alreadyScored = !!note.ai_score
       if (alreadyScored) {
         return `<div style="margin-top:1rem; padding:14px 16px; background:#e8f5e9; border-radius:8px; display:flex; align-items:center; justify-content:space-between;">
           <span style="color:#2e7d32; font-weight:500;">🔍 AI-score: <strong>${note.ai_score}/10</strong></span>
@@ -1272,9 +1271,11 @@ async function saveWine() {
       notitie_smaak: document.getElementById('f-notitie-smaak').value.trim(),
       kwaliteit: getChips('kwaliteit'),
       lekker_rating: chipState['lekker_rating'] || null,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      ai_score: null,
+      ai_score_date: null
     }
-    
+
     wines[wineIdx] = updatedWine
     
     const { error } = await supabase
