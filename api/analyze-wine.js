@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       };
 
       const labelResponse = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash',
         contents: [
           wijnAfbeelding,
           'Analyseer dit wijnlabel. Extraheer de volgende informatie en zet het om in een clean JSON-object met de velden: "naam" (wijnnaam), "druif", "jaar", "regio", "producent". Zet null voor ontbrekende velden.'
@@ -49,7 +49,7 @@ Geef een JSON object terug met de velden: naam (volledige wijnnaam), druif (drui
 Antwoord ALLEEN met het JSON object, geen andere tekst.`;
 
       const infoResponse = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash',
         contents: zoekPrompt,
         config: {
           tools: [{ googleSearch: {} }]

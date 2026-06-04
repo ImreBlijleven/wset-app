@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     const zoekPrompt = `Zoek naar officiële proefnotities en smaakbeschrijvingen van experts voor de wijn: ${wijnNaam}. Vat de belangrijkste smaakkenmerken kort samen in het Nederlands.`;
 
     const expertResponse = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: zoekPrompt,
       config: {
         tools: [{ googleSearch: {} }]
