@@ -7,7 +7,6 @@ let chipState = {}
 let scannedWineData = null
 let currentFilter = null
 let currentSearch = ''
-let db
 let editingWineId = null
 let isLoggedIn = false
 let currentUserId = null
@@ -21,11 +20,17 @@ async function hashPassword(password) {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-// ============= LOGIN SCREEN =============
-
-function getCurrentUserId() {
-  return currentUserId
+function escapeHtml(str) {
+  if (str === null || str === undefined) return ''
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
+
+// ============= LOGIN SCREEN =============
 
 function showLoginScreen() {
   const app = document.getElementById('app')
@@ -208,6 +213,7 @@ async function handleLogin() {
   currentUserId = user.id
   isLoggedIn = true
   localStorage.setItem('wset_user_id', user.id)
+  await loadWines()
   render()
 }
 
@@ -399,9 +405,9 @@ async function showMyWines() {
 
         <!-- Profielkaart -->
         <div class="profile-header">
-          <div class="profile-avatar">${initial}</div>
-          <div class="profile-username">${username}</div>
-          <div class="profile-since">Lid sinds ${lidSinds}</div>
+          <div class="profile-avatar">${escapeHtml(initial)}</div>
+          <div class="profile-username">${escapeHtml(username)}</div>
+          <div class="profile-since">Lid sinds ${escapeHtml(lidSinds)}</div>
           <button class="profile-change-pw-btn" onclick="showChangePassword()">Wachtwoord wijzigen</button>
         </div>
 
@@ -439,11 +445,11 @@ async function showMyWines() {
     list.innerHTML = '<div class="empty-state">Je hebt nog geen wijnen geproefd</div>'
   } else {
     list.innerHTML = myNotes.map(w => `
-      <div class="wine-card" onclick="showWineGroupDetail('${w.wine_id}')">
+      <div class="wine-card" data-wine-id="${escapeHtml(w.wine_id)}" onclick="showWineGroupDetail(this.dataset.wineId)">
         <div class="flex-between">
           <div>
-            <div class="wine-card-title">${w.naam}</div>
-            <div class="wine-card-meta">${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}</div>
+            <div class="wine-card-title">${escapeHtml(w.naam)}</div>
+            <div class="wine-card-meta">${[w.druif, w.regio, w.jaar].filter(Boolean).map(escapeHtml).join(' · ')}</div>
             ${w.created_at ? `<div class="wine-card-meta">${new Date(w.created_at).toLocaleDateString('nl-NL')}</div>` : ''}
             ${w.lekker_rating ? `<div style="margin-top:6px;">${miniGlassRating(w.lekker_rating)}</div>` : ''}
           </div>
@@ -593,7 +599,7 @@ async function showLeaderboard() {
           <div style="display: flex; align-items: center; gap: 12px;">
             <div style="font-size: 26px;">${medal}</div>
             <div>
-              <div class="wine-card-title">${isMe ? 'Jij' : (userCache[entry.userId] || 'Onbekend')}</div>
+              <div class="wine-card-title">${isMe ? 'Jij' : escapeHtml(userCache[entry.userId] || 'Onbekend')}</div>
               <div class="wine-card-meta">${entry.scoredCount}/${entry.totalCount} wijnen beoordeeld</div>
             </div>
           </div>
@@ -640,11 +646,11 @@ function filterAndSearch() {
         : null
 
       return `
-        <div class="wine-card" onclick="showWineGroupDetail('${w.wine_id}')">
+        <div class="wine-card" data-wine-id="${escapeHtml(w.wine_id)}" onclick="showWineGroupDetail(this.dataset.wineId)">
           <div class="flex-between">
             <div>
-              <div class="wine-card-title">${w.naam}</div>
-              <div class="wine-card-meta">${[w.druif, w.regio, w.jaar].filter(Boolean).join(' · ')}</div>
+              <div class="wine-card-title">${escapeHtml(w.naam)}</div>
+              <div class="wine-card-meta">${[w.druif, w.regio, w.jaar].filter(Boolean).map(escapeHtml).join(' · ')}</div>
               <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
                 <span class="note-badge">${count} notitie${count !== 1 ? 's' : ''}</span>
                 ${avgRating ? miniGlassRating(avgRating) : ''}
@@ -681,8 +687,8 @@ async function showWineGroupDetail(wineId) {
       <div class="app-card">
         <button class="back-link" onclick="switchScreen('lijst')">← Terug naar overzicht</button>
 
-        <h2 style="color: var(--color-primary-dark-pink); text-align: center; font-size: 26px; margin-bottom: 4px;">${firstNote.naam}</h2>
-        <div style="text-align: center; font-size: 13px; color: var(--color-text-light); margin-bottom: 20px;">${[firstNote.druif, firstNote.regio, firstNote.jaar].filter(Boolean).join(' · ')}</div>
+        <h2 style="color: var(--color-primary-dark-pink); text-align: center; font-size: 26px; margin-bottom: 4px;">${escapeHtml(firstNote.naam)}</h2>
+        <div style="text-align: center; font-size: 13px; color: var(--color-text-light); margin-bottom: 20px;">${[firstNote.druif, firstNote.regio, firstNote.jaar].filter(Boolean).map(escapeHtml).join(' · ')}</div>
 
         <div id="notes-tabs" class="tabs-bar"></div>
 
@@ -700,8 +706,8 @@ async function showWineGroupDetail(wineId) {
     const isMe = note.user_id === currentUserId
     const label = isMe ? 'Jij' : (userCache[note.user_id] || 'Onbekend')
     return `
-      <button class="filter-chip ${note.id === startNote.id ? 'active' : ''}" data-note-id="${note.id}" onclick="showNoteDetail('${note.id}', '${wineId}')" style="padding: 6px 12px;">
-        ${label}
+      <button class="filter-chip ${note.id === startNote.id ? 'active' : ''}" data-note-id="${note.id}" data-wine-id="${escapeHtml(wineId)}" onclick="showNoteDetail(this.dataset.noteId, this.dataset.wineId)" style="padding: 6px 12px;">
+        ${escapeHtml(label)}
       </button>
     `
   }).join('')
@@ -719,7 +725,7 @@ function showNoteDetail(noteId, wineId) {
   })
 
   const isOwnNote = note.user_id === currentUserId
-  const row = (label, val) => val ? `<tr><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); color: #666; width: 120px;">${label}</td><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); font-weight: 500;">${val}</td></tr>` : ''
+  const row = (label, val) => val ? `<tr><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); color: #666; width: 120px;">${label}</td><td style="padding: 8px 0; border-bottom: 0.5px solid var(--color-border); font-weight: 500;">${escapeHtml(val)}</td></tr>` : ''
 
   const contentDiv = document.getElementById('notes-content')
   contentDiv.innerHTML = `
@@ -750,7 +756,7 @@ function showNoteDetail(noteId, wineId) {
         ${row('Intensiteit', note.geur_int)}
         ${row('Aroma' + "'" + 's', note.aroma)}
       </table>
-      ${note.notitie_geur ? `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px;">${note.notitie_geur}</div>` : ''}
+      ${note.notitie_geur ? `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px; white-space: pre-wrap;">${escapeHtml(note.notitie_geur)}</div>` : ''}
     </div>
 
     <div class="card">
@@ -764,7 +770,7 @@ function showNoteDetail(noteId, wineId) {
         ${row('Smaken', note.smaak)}
         ${row('Afdronk', note.afdronk)}
       </table>
-      ${note.notitie_smaak ? `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px;">${note.notitie_smaak}</div>` : ''}
+      ${note.notitie_smaak ? `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px; white-space: pre-wrap;">${escapeHtml(note.notitie_smaak)}</div>` : ''}
     </div>
 
     <div class="card">
@@ -794,11 +800,11 @@ function showNoteDetail(noteId, wineId) {
       actionsDiv.innerHTML = `
         <button class="button" onclick="editWine('${note.id}')" style="width: 100%; margin-bottom: 0.5rem;">✏️ Mijn notitie bewerken</button>
         <button class="button" onclick="deleteWine('${note.id}')" style="width: 100%; margin-bottom: 0.5rem; color: #c62828; border-color: #c62828;">🗑️ Notitie verwijderen</button>
-        <button class="button" onclick="addNoteToWine('${note.wine_id}')" style="width: 100%;">+ Nog een notitie</button>
+        <button class="button" data-wine-id="${escapeHtml(note.wine_id)}" onclick="addNoteToWine(this.dataset.wineId)" style="width: 100%;">+ Nog een notitie</button>
       `
     } else if (!alreadyHaveOwnNote) {
       actionsDiv.innerHTML = `
-        <button class="button" onclick="addNoteToWine('${note.wine_id}')" style="width: 100%;">+ Voeg jouw notitie toe</button>
+        <button class="button" data-wine-id="${escapeHtml(note.wine_id)}" onclick="addNoteToWine(this.dataset.wineId)" style="width: 100%;">+ Voeg jouw notitie toe</button>
       `
     } else {
       actionsDiv.innerHTML = ''
@@ -988,32 +994,34 @@ function renderForm(container) {
 
           <div class="field">
             <label>Kleur</label>
-            <div class="chip-group-section">
-              <div class="chip-group-section-label">Wit</div>
-              <div class="chip-group" id="chips-kleur">
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Groengeel</button>
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Citroengeel</button>
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Goudgeel</button>
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Ambergeel</button>
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Bruin</button>
+            <div id="chips-kleur">
+              <div class="chip-group-section">
+                <div class="chip-group-section-label">Wit</div>
+                <div class="chip-group">
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Groengeel</button>
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Citroengeel</button>
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Goudgeel</button>
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Ambergeel</button>
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Bruin</button>
+                </div>
               </div>
-            </div>
-            <div class="chip-group-section">
-              <div class="chip-group-section-label">Rosé</div>
-              <div class="chip-group" id="chips-kleur">
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Roze</button>
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Oranjeroze</button>
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Oranje</button>
+              <div class="chip-group-section">
+                <div class="chip-group-section-label">Rosé</div>
+                <div class="chip-group">
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Roze</button>
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Oranjeroze</button>
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Oranje</button>
+                </div>
               </div>
-            </div>
-            <div class="chip-group-section">
-              <div class="chip-group-section-label">Rood</div>
-              <div class="chip-group" id="chips-kleur">
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Paars</button>
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Robijnrood</button>
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Granaatrood</button>
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Bruinrood</button>
-                <button class="chip" onclick="toggleChip(this, 'kleur')">Bruin</button>
+              <div class="chip-group-section">
+                <div class="chip-group-section-label">Rood</div>
+                <div class="chip-group">
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Paars</button>
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Robijnrood</button>
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Granaatrood</button>
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Bruinrood</button>
+                  <button class="chip" onclick="toggleChip(this, 'kleur')">Bruin</button>
+                </div>
               </div>
             </div>
           </div>
@@ -1126,8 +1134,6 @@ function renderForm(container) {
       </div>
     </div>
   `;
-
-  setupChips();
 }
 
 function renderScan(container) {
@@ -1176,11 +1182,6 @@ function useScannedWine() {
     
     window.scrollTo(0, 0)
   }, 100)
-}
-
-function setupChips() {
-  // Chips werken via inline onclick handlers
-  // Kan later uitgebreid worden voor meer complex behavior
 }
 
 function toggleChip(el, group) {
@@ -1252,10 +1253,8 @@ function setWineRating(value) {
 }
 
 async function saveWine() {
-  const userId = await getCurrentUserId()
-  
-  if (!userId) {
-    alert('No user found')
+  if (!currentUserId) {
+    alert('Niet ingelogd')
     return
   }
   
@@ -1397,18 +1396,17 @@ async function deleteWine(id) {
   const wine = wines.find(w => w.id === id)
   if (!wine || wine.user_id !== currentUserId) return
   if (confirm('Weet je zeker dat je deze notitie wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) {
-    wines = wines.filter(w => w.id !== id)
-    
     const { error } = await supabase
       .from('wines')
       .delete()
       .eq('id', id)
-    
+
     if (error) {
       alert('Fout bij verwijderen')
       return
     }
-    
+
+    wines = wines.filter(w => w.id !== id)
     switchScreen('lijst')
   }
 }
@@ -1469,14 +1467,14 @@ async function analyzeLabel() {
     const confidenceLabel = info.confidence === 'high' ? '✓ Zeker gevonden' : info.confidence === 'medium' ? '~ Waarschijnlijk gevonden' : '? Onzeker'
     const confidenceColor = info.confidence === 'high' ? '#2e7d32' : info.confidence === 'medium' ? '#e65100' : '#c62828'
     resultText.innerHTML = `
-      <strong>${info.naam || '?'}</strong><br>
-      <span style="color:#666;">${[info.druif, info.regio, info.jaar].filter(Boolean).join(' · ')}</span>
-      ${info.beschrijving ? `<br><span style="color:#888; font-size:12px; font-style:italic;">${info.beschrijving}</span>` : ''}
+      <strong>${escapeHtml(info.naam || '?')}</strong><br>
+      <span style="color:#666;">${[info.druif, info.regio, info.jaar].filter(Boolean).map(escapeHtml).join(' · ')}</span>
+      ${info.beschrijving ? `<br><span style="color:#888; font-size:12px; font-style:italic;">${escapeHtml(info.beschrijving)}</span>` : ''}
       <br><span style="font-size:11px; color:${confidenceColor};">${confidenceLabel}</span>
     `
     useBtn.style.display = 'block'
   } catch (err) {
-    resultText.innerHTML = `<span style="color: #c62828;">${err.message}</span>`
+    resultText.innerHTML = `<span style="color: #c62828;">${escapeHtml(err.message)}</span>`
     analyzeBtn.disabled = false
     analyzeBtn.style.opacity = '1'
   }
@@ -1535,7 +1533,7 @@ Kwaliteit: ${wine.kwaliteit}
     if (result.error === 'wine_not_found') {
       resultDiv.innerHTML = `
         <div style="color:#c62828; font-weight:bold; margin-bottom:0.5rem;">⚠️ Wijn niet herkend</div>
-        <div style="font-size:13px; color:#666; line-height:1.6;">${result.message}</div>
+        <div style="font-size:13px; color:#666; line-height:1.6;">${escapeHtml(result.message)}</div>
       `
       return
     }
@@ -1554,15 +1552,16 @@ Kwaliteit: ${wine.kwaliteit}
     resultDiv.innerHTML = `
       <div style="color: #4caf50; font-weight: bold; margin-bottom: 1rem;">✓ AI FEEDBACK</div>
       ${feedback.split('\n').map(line => {
+        const safe = escapeHtml(line)
         if (line.includes('**')) {
-          return `<div style="font-weight: 500; margin-top: 0.75rem; font-size: 13px;">${line.replace(/\*\*/g, '')}</div>`
+          return `<div style="font-weight: 500; margin-top: 0.75rem; font-size: 13px;">${safe.replace(/\*\*/g, '')}</div>`
         }
         if (line.trim() === '') return ''
-        return `<div style="font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 0.5rem;">${line}</div>`
+        return `<div style="font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 0.5rem;">${safe}</div>`
       }).join('')}
     `
   } catch (err) {
-    resultDiv.innerHTML = `<span style="color: #c62828;">❌ Fout: ${err.message}</span>`
+    resultDiv.innerHTML = `<span style="color: #c62828;">❌ Fout: ${escapeHtml(err.message)}</span>`
   }
 }
 
@@ -1585,14 +1584,10 @@ async function init() {
   if (savedUserId) {
     currentUserId = savedUserId
     isLoggedIn = true
-  }
-
-  await loadWines()
-
-  if (!isLoggedIn) {
-    showLoginScreen()
-  } else {
+    await loadWines()
     render()
+  } else {
+    showLoginScreen()
   }
 }
 
