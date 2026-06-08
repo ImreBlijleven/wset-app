@@ -14,12 +14,6 @@ const userCache = {}  // { user_id: username }
 
 // ============= AUTH HELPERS =============
 
-async function hashPassword(password) {
-  const data = new TextEncoder().encode(password)
-  const hash = await crypto.subtle.digest('SHA-256', data)
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
 function escapeHtml(str) {
   if (str === null || str === undefined) return ''
   return String(str)
@@ -174,34 +168,21 @@ async function handleLogin() {
   const username = document.getElementById('login-username').value.trim()
   const password = document.getElementById('login-password').value
 
-  if (!username) {
-    alert('Vul username in')
+  if (!username || !password) {
+    alert('Vul username en wachtwoord in')
     return
   }
 
-  if (!password) {
-    alert('Vul je wachtwoord in')
-    return
-  }
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: `${username}@wset-app.local`,
+    password
+  })
 
-  const passwordHash = await hashPassword(password)
-
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('id, password_hash')
-    .eq('username', username)
-    .single()
-
-  if (error || !user) {
-    alert('Username niet gevonden')
-    return
-  }
-
-  if (user.password_hash !== passwordHash) {
+  if (error || !data.session) {
     const input = document.getElementById('login-password')
     input.style.borderColor = '#c62828'
     input.value = ''
-    input.placeholder = 'Verkeerd wachtwoord'
+    input.placeholder = 'Username of wachtwoord onjuist'
     setTimeout(() => {
       input.style.borderColor = '#D67A7A'
       input.placeholder = 'Wachtwoord'
@@ -209,10 +190,8 @@ async function handleLogin() {
     return
   }
 
-  // Success!
-  currentUserId = user.id
+  currentUserId = data.user.id
   isLoggedIn = true
-  localStorage.setItem('wset_user_id', user.id)
   await loadWines()
   render()
 }
@@ -227,8 +206,18 @@ async function handleSignup() {
     return
   }
 
-  if (!password) {
-    alert('Kies een wachtwoord')
+  if (username.length < 3) {
+    alert('Username moet minimaal 3 tekens zijn')
+    return
+  }
+
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    alert('Username mag alleen letters, cijfers en _ bevatten')
+    return
+  }
+
+  if (!password || password.length < 6) {
+    alert('Kies een wachtwoord van minimaal 6 tekens')
     return
   }
 
@@ -244,28 +233,44 @@ async function handleSignup() {
     return
   }
 
-  const passwordHash = await hashPassword(password)
+  // Check of username al bezet is
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('username', username)
+    .maybeSingle()
 
-  const { data, error } = await supabase
-    .from('users')
-    .insert([{
-      username,
-      email: username + '@local',
-      password_hash: passwordHash
-    }])
-    .select()
-
-  if (error) {
-    if (error.code === '23505') {
-      alert('Deze username is al bezet, kies een andere.')
-    } else {
-      alert('Fout: ' + error.message)
-    }
+  if (existing) {
+    alert('Deze username is al bezet, kies een andere.')
     return
   }
 
-  alert('Account gemaakt! Je kunt nu inloggen.')
-  showLoginScreen()
+  const { data, error } = await supabase.auth.signUp({
+    email: `${username}@wset-app.local`,
+    password
+  })
+
+  if (error) {
+    alert('Fout bij aanmaken: ' + error.message)
+    return
+  }
+
+  // Maak profiel aan
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .insert([{ id: data.user.id, username }])
+
+  if (profileError) {
+    alert('Fout bij aanmaken profiel: ' + profileError.message)
+    return
+  }
+
+  // Direct ingelogd na registratie
+  currentUserId = data.user.id
+  isLoggedIn = true
+  userCache[currentUserId] = username
+  await loadWines()
+  render()
 }
 
 // ============= DATABASE =============
@@ -384,7 +389,7 @@ async function showMyWines() {
     : null
 
   const { data: userData } = await supabase
-    .from('users')
+    .from('profiles')
     .select('username, created_at')
     .eq('id', currentUserId)
     .single()
@@ -496,6 +501,11 @@ async function handleChangePasswordSubmit() {
     return
   }
 
+  if (newPw.length < 6) {
+    alert('Nieuw wachtwoord moet minimaal 6 tekens zijn')
+    return
+  }
+
   if (newPw !== confirmPw) {
     const el = document.getElementById('pw-confirm')
     el.style.borderColor = '#c62828'
@@ -505,14 +515,20 @@ async function handleChangePasswordSubmit() {
     return
   }
 
-  const currentHash = await hashPassword(current)
-  const { data: userData } = await supabase
-    .from('users')
-    .select('password_hash')
-    .eq('id', currentUserId)
-    .single()
+  // Verifieer huidig wachtwoord via re-authenticatie
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    alert('Sessie verlopen, log opnieuw in')
+    handleLogout()
+    return
+  }
 
-  if (!userData || userData.password_hash !== currentHash) {
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: session.user.email,
+    password: current
+  })
+
+  if (verifyError) {
     const el = document.getElementById('pw-current')
     el.style.borderColor = '#c62828'
     el.value = ''
@@ -521,11 +537,7 @@ async function handleChangePasswordSubmit() {
     return
   }
 
-  const newHash = await hashPassword(newPw)
-  const { error } = await supabase
-    .from('users')
-    .update({ password_hash: newHash })
-    .eq('id', currentUserId)
+  const { error } = await supabase.auth.updateUser({ password: newPw })
 
   if (error) {
     alert('Fout bij opslaan: ' + error.message)
@@ -557,7 +569,7 @@ async function showLeaderboard() {
   const unknownIds = Object.keys(userScores).filter(id => !userCache[id])
   if (unknownIds.length > 0) {
     const { data } = await supabase
-      .from('users')
+      .from('profiles')
       .select('id, username')
       .in('id', unknownIds)
     if (data) data.forEach(u => { userCache[u.id] = u.username })
@@ -675,7 +687,7 @@ async function showWineGroupDetail(wineId) {
   const unknownIds = [...new Set(allNotes.map(n => n.user_id))].filter(id => !userCache[id])
   if (unknownIds.length > 0) {
     const { data } = await supabase
-      .from('users')
+      .from('profiles')
       .select('id, username')
       .in('id', unknownIds)
     if (data) data.forEach(u => { userCache[u.id] = u.username })
@@ -1567,22 +1579,26 @@ Kwaliteit: ${wine.kwaliteit}
 
 // ============= LOGOUT =============
 
-function handleLogout() {
+async function handleLogout() {
   isLoggedIn = false
   currentUserId = null
-  localStorage.removeItem('wset_user_id')
   wines = []
   currentFilter = null
   currentSearch = ''
+  localStorage.removeItem('wset_user_id')  // Opruimen oude sessie key
   showLoginScreen()
+  await supabase.auth.signOut()
 }
 
 // ============= INIT =============
 
 async function init() {
-  const savedUserId = localStorage.getItem('wset_user_id')
-  if (savedUserId) {
-    currentUserId = savedUserId
+  // Ruim oude custom sessie-key op
+  localStorage.removeItem('wset_user_id')
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session) {
+    currentUserId = session.user.id
     isLoggedIn = true
     await loadWines()
     render()
